@@ -7,7 +7,7 @@ from functools import lru_cache, reduce
 from collections import OrderedDict
 import itertools
 from itertools import combinations, permutations, tee
-from collections import defaultdict, Counter, namedtuple
+from collections import defaultdict, Counter, namedtuple, deque
 from datetime import datetime
 import time
 import json
@@ -21,13 +21,14 @@ import operator
 import concurrent.futures
 from pprint import pprint
 from typing import *
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import numpy as np
+# from scipy.spatial.distance import cdist
 # import plotly.graph_objects as go
 # import plotly.express as px
 # import pandas as pd
-import numpy as np
-from scipy.spatial.distance import cdist
 # import neptune.new as neptune
 # import streamlit as st
 # import plotly.express as px

@@ -6,7 +6,6 @@ def do_the_animation(info, to_save=False):
     agents = info['agents']
     max_time = info['max_time']
     img_dir = info['img_dir']
-    is_sacg = info['is_sacg']
     alg_name = info['alg_name']
     n_agents = len(agents)
     i_agent = agents[0]
@@ -58,8 +57,7 @@ def do_the_animation(info, to_save=False):
 
     ani = animation.FuncAnimation(fig=fig, func=update, frames=max_time, interval=250)
     if to_save:
-        add_text = 'SACG_' if is_sacg else ''
-        add_text += f'{alg_name}_'
+        add_text = f'{alg_name}_'
         ani.save(filename=f"../videos/{add_text}{n_agents}_agents_in_{img_dir[:-4]}_for_{max_time}_steps.mp4", writer="ffmpeg")
     plt.show()
 

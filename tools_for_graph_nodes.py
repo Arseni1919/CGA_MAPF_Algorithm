@@ -211,6 +211,91 @@ def get_edge_nodes(nodes_type, scen_name, nodes_dict, path='scens'):
     return nodes_to_return
 
 
+def copy_nodes(nodes: List[Node]) -> Tuple[List[Node], Dict[str, Node]]:
+    new_nodes: List[Node] = []
+    new_nodes_dict: Dict[str, Node] = {}
+    for node in nodes:
+        new_node = Node(node.x, node.y, neighbours=node.neighbours)
+        new_nodes.append(new_node)
+        new_nodes_dict[new_node.xy_name] = new_node
+    return new_nodes, new_nodes_dict
+
+
+def is_freedom_node(node: Node, nodes_dict: Dict[str, Node]) -> bool:
+    assert len(node.neighbours) != 0
+    assert len(node.neighbours) != 1
+    if len(node.neighbours) == 2:
+        return True
+
+    prev_len = len(node.neighbours)
+    init_nei_names = node.neighbours[:]
+    init_nei_names.remove(node.xy_name)
+
+    assert len(init_nei_names) < prev_len
+    assert len(node.neighbours) == prev_len
+    assert len(init_nei_names) != 0
+    assert len(init_nei_names) > 1
+
+    first_nei_name = init_nei_names[0]
+    init_nei_names.remove(first_nei_name)
+    first_nei = nodes_dict[first_nei_name]
+
+    open_list: Deque[Node] = deque([first_nei])
+    open_names_list_heap = [f'{first_nei.xy_name}']
+    heapq.heapify(open_names_list_heap)
+    closed_names_list_heap = [f'{node.xy_name}']
+    heapq.heapify(closed_names_list_heap)
+
+    iteration = 0
+    while len(open_list) > 0:
+        iteration += 1
+        next_node = open_list.pop()
+        open_names_list_heap.remove(next_node.xy_name)
+        if next_node.xy_name in init_nei_names:
+            init_nei_names.remove(next_node.xy_name)
+            if len(init_nei_names) == 0:
+                return True
+        for nei_name in next_node.neighbours:
+            if nei_name == next_node.xy_name:
+                continue
+            if nei_name in closed_names_list_heap:
+                continue
+            if nei_name in open_names_list_heap:
+                continue
+            nei_node = nodes_dict[nei_name]
+
+            open_list.appendleft(nei_node)
+            heapq.heappush(open_names_list_heap, nei_name)
+        heapq.heappush(closed_names_list_heap, next_node.xy_name)
+
+    return False
+
+
+def get_non_sv_nodes_np(nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray, img_dir: str,
+                        folder_dir: str = 'logs_for_freedom_maps') -> np.ndarray:
+    # print('Started to get freedom nodes...')
+    # load
+    possible_dir = f'{folder_dir}/{img_dir[:-4]}.npy'
+    if os.path.exists(possible_dir):
+        with open(possible_dir, 'rb') as f:
+            freedom_nodes_np = np.load(f)
+            return freedom_nodes_np
+
+    # if no saved freedom map:
+    freedom_nodes_np = np.zeros(img_np.shape)
+    for node in nodes:
+        if is_freedom_node(node, nodes_dict):
+            freedom_nodes_np[node.x, node.y] = 1
+    # print('Finished freedom nodes.')
+
+    # save
+    if os.path.exists('logs_for_freedom_maps'):
+        with open(possible_dir, 'wb') as f:
+            np.save(f, freedom_nodes_np)
+        # print('Saved freedom nodes.')
+    return freedom_nodes_np
+
+
 def main():
     # img_dir = 'empty-32-32.map'  # 32-32
     img_dir = 'random-32-32-10.map'  # 32-32          | LNS | Up to 400 agents with w=5, h=2, lim=1min.
