@@ -350,13 +350,19 @@ def manhattan_distance_nodes(node1, node2):
     return abs(node1.x-node2.x) + abs(node1.y-node2.y)
 
 
+def get_min_h_nei_node[T](curr_node: T, goal_node: T, nodes_dict: Dict[str, T], h_dict: Dict[str, np.ndarray]) -> T:
+    nei_nodes = [nodes_dict[nn] for nn in curr_node.neighbours]
+    min_h_nei_node = min(nei_nodes, key=lambda n: h_dict[n.xy_name][goal_node.x, goal_node.y])
+    return min_h_nei_node
+
+
 def is_enough_free_locations(curr_node, goal_node, nodes_dict: dict, h_dict: Dict[str, np.ndarray], other_curr_nodes: list, non_sv_nodes_np: np.ndarray) -> Tuple[bool, str]:
     open_list: list = []
-    closed_list: list = [curr_node]
+    closed_list: list = [curr_node, goal_node]
     heapq.heapify(open_list)
     heapq.heapify(closed_list)
 
-    min_nei_node = min([nodes_dict[nn] for nn in curr_node.neighbours], key=lambda n: h_dict[n.xy_name][goal_node.x, goal_node.y])
+    min_nei_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
     heapq.heappush(open_list, min_nei_node)
 
     # calc the biggest corridor
@@ -369,7 +375,7 @@ def is_enough_free_locations(curr_node, goal_node, nodes_dict: dict, h_dict: Dic
         else:
             sv_list.append(sv_count)
             sv_count = 0
-        next_node = min([nodes_dict[nn] for nn in next_node.neighbours], key=lambda n: h_dict[n.xy_name][goal_node.x, goal_node.y])
+        next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
     max_corridor = max(sv_list)
 
     free_count = 0

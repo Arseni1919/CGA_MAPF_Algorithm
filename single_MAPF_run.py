@@ -16,8 +16,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # SACGR
         # ------------------------------------------------------------------------------------------------------------ #
         N = 100
-        # img_dir = 'empty-32-32.map'
-        img_dir = 'random-32-32-20.map'
+        img_dir = 'empty-32-32.map'
+        # img_dir = 'random-32-32-20.map'
         # limits
         max_time = 1e7  # seconds
         # debug

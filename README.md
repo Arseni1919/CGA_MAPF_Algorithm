@@ -6,11 +6,11 @@ todo
 
 ## PIBT 
 
-![pibt.png](pics%2Fpibt.png)
+![pics/pibt.png](pics/pibt.png)
 
 ## LaCAM
 
-![lacam.png](pics%2Flacam.png)
+![pics/lacam.png](pics/lacam.png)
 
 
 

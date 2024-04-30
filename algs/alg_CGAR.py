@@ -129,6 +129,18 @@ class AlgCGAR:
                 - Proceed the steps in the corridor ->continue
         - Reverse all agents that where moved away -> return
         """
+        main_goal_node = self.main_agent.goal_node
+        blocked_nodes = [main_goal_node]
+        while self.main_agent.curr_node != main_goal_node:
+            main_next_node = get_min_h_nei_node(self.main_agent.curr_node, main_goal_node, self.nodes_dict, self.h_dict)
+            if self.non_sv_nodes_np[main_next_node.x, main_next_node.y]:
+                # single PIBT step
+                pass
+            else:
+                # Evacuate agents from the corridor
+                pass
+        # reverse part
+        pass
         return False, {}
 
 
