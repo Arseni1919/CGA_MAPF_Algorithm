@@ -242,11 +242,11 @@ def plot_step_in_env(ax, info):
     if 'i_agent' in info:
         i_agent = info['i_agent']
         curr_node = i_agent.curr_node
-        next_goal_node = i_agent.next_goal_node
-        ax.scatter([curr_node.y], [curr_node.x], s=60, c='w')
-        ax.scatter([curr_node.y], [curr_node.x], s=30, c='r')
-        ax.scatter([next_goal_node.y], [next_goal_node.x], s=200, c='white', marker='X')
-        ax.scatter([next_goal_node.y], [next_goal_node.x], s=100, c='red', marker='X')
+        next_goal_node = i_agent.goal_node
+        ax.scatter([curr_node.y], [curr_node.x], s=120, c='w')
+        ax.scatter([curr_node.y], [curr_node.x], s=70, c='r')
+        ax.scatter([next_goal_node.y], [next_goal_node.x], s=400, c='white', marker='X', alpha=0.4)
+        ax.scatter([next_goal_node.y], [next_goal_node.x], s=200, c='red', marker='X', alpha=0.4)
 
     title_str = 'plot_step_in_env\n'
     if 'to_title' in info:

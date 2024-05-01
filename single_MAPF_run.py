@@ -9,15 +9,27 @@ def single_mapf_run(AlgClass, is_SACGR=True):
     # ------------------------------------------------------------------------------------------------------------ #
     # General params
     # ------------------------------------------------------------------------------------------------------------ #
-    set_seed(random_seed_bool=False, seed=9922)
+    # set_seed(random_seed_bool=False, seed=381)
+    set_seed(random_seed_bool=False, seed=5395)
+    # set_seed(random_seed_bool=True, seed=9922)
 
     if is_SACGR:
         # ------------------------------------------------------------------------------------------------------------ #
         # SACGR
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 100
-        img_dir = 'empty-32-32.map'
+        N = 500
+        # img_dir = '15-15-two-rooms.map'
+        # img_dir = '15-15-four-rooms.map'
+        # img_dir = '15-15-six-rooms.map'
+        # img_dir = '15-15-eight-rooms.map'
+        # img_dir = '10_10_my_rand.map'
+
+        # img_dir = 'empty-32-32.map'
+        # img_dir = 'random-32-32-10.map'
         # img_dir = 'random-32-32-20.map'
+        img_dir = 'maze-32-32-4.map'
+        # img_dir = 'maze-32-32-2.map'
+        # img_dir = 'room-32-32-4.map'
         # limits
         max_time = 1e7  # seconds
         # debug
@@ -32,14 +44,24 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 100
+        N = 380
+        # img_dir = '15-15-two-rooms.map'
+        # img_dir = '15-15-four-rooms.map'
+        # img_dir = '15-15-six-rooms.map'
+        # img_dir = '15-15-eight-rooms.map'
+        # img_dir = '10_10_my_rand.map'
+
         # img_dir = 'empty-32-32.map'
+        # img_dir = 'random-32-32-10.map'
         img_dir = 'random-32-32-20.map'
+        # img_dir = 'maze-32-32-4.map'
+        # img_dir = 'maze-32-32-2.map'
+        # img_dir = 'room-32-32-4.map'
         # limits
         max_time = 1e7  # seconds
         # debug
         to_check_paths = True
-        to_check_paths = False
+        # to_check_paths = False
         to_assert = True
         # rendering
         to_render = True
@@ -58,7 +80,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
     solvable, message = alg.check_solvability()
     print(f'Solvability: {message}')
 
-    solved = False
+    solved, paths_dict = False, {}
     if solvable:
         solved, paths_dict = alg.solve(max_time=max_time, to_assert=to_assert, to_render=to_render)
 
@@ -66,7 +88,10 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         pass
 
     if solved:
-        do_the_animation(info={'img_dir': img_dir, 'img_np': env.img_np, 'agents': alg.agents, 'max_time': max_time, 'alg_name': alg.name}, to_save=to_save_animation)
+        do_the_animation(info={
+            'img_dir': img_dir, 'img_np': env.img_np, 'paths_dict': paths_dict, 'i_agent': alg.agents[0],
+            'max_time': len(max(list(paths_dict.values()))), 'alg_name': alg.name
+        }, to_save=to_save_animation)
     print(f'The run is finished\n{solved=}')
 
 # if to_render:

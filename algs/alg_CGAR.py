@@ -3,6 +3,8 @@ from tools_for_heuristics import *
 from tools_for_graph_nodes import *
 from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
+from algs.alg_generic_class import AlgGeneric
+from algs.alg_PIBT import run_i_pibt
 
 
 class AlgCGARAgent:
@@ -48,10 +50,11 @@ class AlgCGARAgent:
         return self.num == other.num
 
 
-class AlgCGAR:
+class AlgCGAR(AlgGeneric):
     name = 'CGAR'
 
     def __init__(self, env: SimEnvMAPF):
+        super().__init__()
         assert env.is_SACGR
 
         self.env = env
@@ -114,10 +117,11 @@ class AlgCGAR:
         if self.non_sv_nodes_np[self.main_agent.curr_node.x, self.main_agent.curr_node.y]:
             return True, 'good'
         # if there are enough free locations to allow the main agent to pass
+        # TODO: check the function ↓
         return is_enough_free_locations(self.main_agent.start_node, self.main_agent.goal_node, self.nodes_dict,
                                         self.h_dict, self.start_nodes, self.non_sv_nodes_np)
 
-    def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[str]]]:
+    def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
         - Block the goal vertex
         - While curr_node is not the goal:
@@ -129,19 +133,74 @@ class AlgCGAR:
                 - Proceed the steps in the corridor ->continue
         - Reverse all agents that where moved away -> return
         """
+        # to render
+        if to_render:
+            fig, ax = plt.subplots(1, 2, figsize=(14, 7))
+            plot_rate = 0.001
+
         main_goal_node = self.main_agent.goal_node
         blocked_nodes = [main_goal_node]
+        iteration = 0
         while self.main_agent.curr_node != main_goal_node:
             main_next_node = get_min_h_nei_node(self.main_agent.curr_node, main_goal_node, self.nodes_dict, self.h_dict)
             if self.non_sv_nodes_np[main_next_node.x, main_next_node.y]:
-                # single PIBT step
-                pass
+                # calc single PIBT step
+                self.calc_pibt_step(iteration)
             else:
-                # Evacuate agents from the corridor
-                pass
+                # calc evacuation of agents from the corridor
+                self.calc_ep_steps(iteration)
+
+            # execute the step
+            for agent in self.agents:
+                next_node = agent.path[iteration]
+                agent.prev_node = agent.curr_node
+                agent.curr_node = next_node
+
+            # updates after the step execution
+            iteration += 1
+
+            # print + render
+            print(f'\r[CGAR] {iteration=} | ', end='')
+
+            if to_render and iteration >= 0:
+                # i_agent = self.agents_dict['agent_0']
+                i_agent = self.agents[0]
+                plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, }
+                plot_step_in_env(ax[0], plot_info)
+                # plot_total_finished_goals(ax[1], plot_info)
+                # plot_unique_movements(ax[1], plot_info)
+                plt.pause(plot_rate)
+                if i_agent.prev_node == i_agent.curr_node:
+                    print(f'\n{iteration=} | {i_agent.name=}')
         # reverse part
         pass
-        return False, {}
+
+        paths_dict = {a.name: a.path for a in self.agents}
+        return True, paths_dict
+
+    def calc_pibt_step(self, iteration: int):
+        assert len(self.main_agent.path) - 1 < iteration
+        # calc the step
+        config_to = {}
+        for agent in self.agents:
+            if len(agent.path) - 1 >= iteration:
+                config_to[agent.name] = agent.path[iteration]
+
+        config_to = run_i_pibt(self.main_agent, self.agents, self.nodes_dict, self.h_dict, config_to)
+        for agent in self.agents:
+            if agent.name not in config_to:
+                config_to[agent.name] = agent.curr_node
+
+        for agent in self.agents:
+            next_node = config_to[agent.name]
+            agent.path.append(next_node)
+
+
+    def calc_ep_steps(self, iteration: int):
+        # calc the steps
+        if len(self.main_agent.path) - 1 < iteration:
+            pass
+        pass
 
 
 @use_profiler(save_dir='../stats/alg_cgar.pstat')
