@@ -17,17 +17,17 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # SACGR
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 500
+        N = 990
         # img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
         # img_dir = '15-15-six-rooms.map'
         # img_dir = '15-15-eight-rooms.map'
         # img_dir = '10_10_my_rand.map'
 
-        # img_dir = 'empty-32-32.map'
+        img_dir = 'empty-32-32.map'
         # img_dir = 'random-32-32-10.map'
         # img_dir = 'random-32-32-20.map'
-        img_dir = 'maze-32-32-4.map'
+        # img_dir = 'maze-32-32-4.map'
         # img_dir = 'maze-32-32-2.map'
         # img_dir = 'room-32-32-4.map'
         # limits
@@ -44,7 +44,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 380
+        N = 100
         # img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
         # img_dir = '15-15-six-rooms.map'
@@ -53,8 +53,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
 
         # img_dir = 'empty-32-32.map'
         # img_dir = 'random-32-32-10.map'
-        img_dir = 'random-32-32-20.map'
-        # img_dir = 'maze-32-32-4.map'
+        # img_dir = 'random-32-32-20.map'
+        img_dir = 'maze-32-32-4.map'
         # img_dir = 'maze-32-32-2.map'
         # img_dir = 'room-32-32-4.map'
         # limits
@@ -87,6 +87,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
     if to_check_paths:
         pass
 
+    plt.close()
     if solved:
         do_the_animation(info={
             'img_dir': img_dir, 'img_np': env.img_np, 'paths_dict': paths_dict, 'i_agent': alg.agents[0],

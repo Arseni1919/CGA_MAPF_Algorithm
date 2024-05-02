@@ -125,12 +125,15 @@ class AlgCGAR(AlgGeneric):
         """
         - Block the goal vertex
         - While curr_node is not the goal:
-            - If the next vertex is non-SV -> PIBT step -> continue
-            - Else:
-                - Build corridor
-                - Build EP for ev-agents in the corridor
-                - Evacuate ev-agents
-                - Proceed the steps in the corridor ->continue
+            - If the plan is needed:
+                - If the next vertex is non-SV:
+                    - build PIBT step
+                - Else:
+                    - Build corridor
+                    - Build EP for ev-agents in the corridor
+                    - Evacuate ev-agents
+                    - Build the steps in the corridor to the main agent
+            - execute step
         - Reverse all agents that where moved away -> return
         """
         # to render
@@ -138,17 +141,23 @@ class AlgCGAR(AlgGeneric):
             fig, ax = plt.subplots(1, 2, figsize=(14, 7))
             plot_rate = 0.001
 
-        main_goal_node = self.main_agent.goal_node
-        blocked_nodes = [main_goal_node]
         iteration = 0
-        while self.main_agent.curr_node != main_goal_node:
-            main_next_node = get_min_h_nei_node(self.main_agent.curr_node, main_goal_node, self.nodes_dict, self.h_dict)
-            if self.non_sv_nodes_np[main_next_node.x, main_next_node.y]:
-                # calc single PIBT step
-                self.calc_pibt_step(iteration)
-            else:
-                # calc evacuation of agents from the corridor
-                self.calc_ep_steps(iteration)
+        while self.main_agent.curr_node != self.main_agent.goal_node:
+            if len(self.main_agent.path) - 1 < iteration:
+
+                # assert
+                if to_assert:
+                    for agent in self.agents:
+                        assert len(agent.path) - 1 < iteration
+
+                # if you are here, there is a need for a plan for a future step
+                main_next_node = get_min_h_nei_node(self.main_agent.curr_node, self.main_agent.goal_node, self.nodes_dict, self.h_dict)
+                if self.non_sv_nodes_np[main_next_node.x, main_next_node.y]:
+                    # calc single PIBT step
+                    self.calc_pibt_step(iteration)
+                else:
+                    # calc evacuation of agents from the corridor
+                    self.calc_ep_steps(iteration)
 
             # execute the step
             for agent in self.agents:
@@ -172,6 +181,7 @@ class AlgCGAR(AlgGeneric):
                 plt.pause(plot_rate)
                 if i_agent.prev_node == i_agent.curr_node:
                     print(f'\n{iteration=} | {i_agent.name=}')
+
         # reverse part
         pass
 
@@ -180,26 +190,43 @@ class AlgCGAR(AlgGeneric):
 
     def calc_pibt_step(self, iteration: int):
         assert len(self.main_agent.path) - 1 < iteration
-        # calc the step
+        # preps
         config_to = {}
         for agent in self.agents:
             if len(agent.path) - 1 >= iteration:
                 config_to[agent.name] = agent.path[iteration]
 
-        config_to = run_i_pibt(self.main_agent, self.agents, self.nodes_dict, self.h_dict, config_to)
+        # calc PIBT
+        config_to = run_i_pibt(self.main_agent, self.agents, self.nodes_dict, self.h_dict, config_to=config_to)
         for agent in self.agents:
             if agent.name not in config_to:
                 config_to[agent.name] = agent.curr_node
 
+        # extend the paths
         for agent in self.agents:
             next_node = config_to[agent.name]
             agent.path.append(next_node)
 
-
     def calc_ep_steps(self, iteration: int):
-        # calc the steps
-        if len(self.main_agent.path) - 1 < iteration:
-            pass
+        """
+        - Build corridor
+        - Build EP for ev-agents in the corridor
+        - Evacuate ev-agents
+        - Build the steps in the corridor to the main agent
+        """
+        # Build corridor
+        pass
+
+        # Build EP for ev-agents in the corridor
+        pass
+
+        # Evacuate ev-agents
+        pass
+
+        # Build the steps in the corridor to the main agent
+        pass
+
+        # Extend the paths
         pass
 
 

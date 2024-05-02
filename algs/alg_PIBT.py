@@ -1,4 +1,5 @@
 import heapq
+import random
 from abc import ABC
 
 from tools_for_plotting import *
@@ -16,6 +17,8 @@ def build_vc_ec_from_configs(config_from: Dict[str, Node], config_to: Dict[str, 
             node_to = config_to[agent_name]
             heapq.heappush(vc_set, (node_to.x, node_to.y))
             heapq.heappush(ec_set, (node_from.x, node_from.y, node_to.x, node_to.y))
+            # vc_set.append((node_to.x, node_to.y))
+            # ec_set.append((node_from.x, node_from.y, node_to.x, node_to.y))
     return vc_set, ec_set
 
 
@@ -128,6 +131,8 @@ class AlgPIBTAgent:
         self.goal_node: Node = goal_node
         self.path: List[Node] = [start_node]
         self.arrived: bool = False
+        self.init_priority = random.random()
+        self.priority = self.init_priority
 
     @property
     def name(self):
@@ -223,7 +228,7 @@ class AlgPIBT(AlgGeneric):
 
             # execute the step + check the termination condition
             finished = True
-            agents_finished, agents_unfinished = [], []
+            agents_finished = []
             for agent in self.agents:
                 next_node = config_to[agent.name]
                 agent.path.append(next_node)
@@ -231,18 +236,17 @@ class AlgPIBT(AlgGeneric):
                 agent.curr_node = next_node
                 if agent.curr_node != agent.goal_node:
                     finished = False
-                    agents_unfinished.append(agent)
+                    agent.priority += 1
                 else:
+                    agent.priority = agent.init_priority
+                    # agent.priority = random.random()
                     agents_finished.append(agent)
 
             # unfinished first
-            # random.shuffle(agents_finished)
-            # random.shuffle(agents_unfinished)
-            # agents_unfinished = agents_unfinished[1:] + agents_unfinished[:1]
-            self.agents: List[AlgPIBTAgent] = agents_unfinished
-            self.agents.extend(agents_finished)
+            self.agents.sort(key=lambda a: a.priority, reverse=True)
 
             # stats
+            pass
 
             # print + render
             print(f'\r[PIBT] {iteration=} | finished: {len(agents_finished)}/{self.n_agents}', end='')
