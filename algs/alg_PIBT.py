@@ -239,7 +239,6 @@ class AlgPIBT(AlgGeneric):
                     agent.priority += 1
                 else:
                     agent.priority = agent.init_priority
-                    # agent.priority = random.random()
                     agents_finished.append(agent)
 
             # unfinished first

@@ -148,7 +148,7 @@ class AlgCGAR(AlgGeneric):
                 # assert
                 if to_assert:
                     for agent in self.agents:
-                        assert len(agent.path) - 1 < iteration
+                        assert len(agent.path) == iteration
 
                 # if you are here, there is a need for a plan for a future step
                 main_next_node = get_min_h_nei_node(self.main_agent.curr_node, self.main_agent.goal_node, self.nodes_dict, self.h_dict)
