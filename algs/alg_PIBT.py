@@ -31,10 +31,12 @@ def procedure_i_pibt[T](
         goals: Dict[str, Node],
         node_name_to_agent_dict: Dict[str, T],
         node_name_to_agent_list: List[str],
+        blocked_nodes: List[Node]
 ) -> bool:
     agent_name = agent.name
     agent_curr_node = config_from[agent_name]
-    h_goal_np: np.ndarray = h_dict[goals[agent_name].xy_name]
+    agent_goal_node = goals[agent_name]
+    h_goal_np: np.ndarray = h_dict[agent_goal_node.xy_name]
     vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
 
     # sort C in ascending order of dist(u, gi) where u ∈ C
@@ -55,6 +57,9 @@ def procedure_i_pibt[T](
         # ec
         if (nei_node.x, nei_node.y, agent_curr_node.x, agent_curr_node.y) in ec_set:
             continue
+        # blocked
+        if nei_node in blocked_nodes and nei_node != agent_goal_node:
+            continue
 
         config_to[agent_name] = nei_node
         if nei_node.xy_name in node_name_to_agent_list:
@@ -62,7 +67,7 @@ def procedure_i_pibt[T](
             if agent != next_agent and next_agent.name not in config_to:
                 next_is_valid = procedure_i_pibt(
                     next_agent, nodes_dict, h_dict, config_from, config_to, goals,
-                    node_name_to_agent_dict, node_name_to_agent_list,
+                    node_name_to_agent_dict, node_name_to_agent_list, blocked_nodes
                 )
                 if not next_is_valid:
                     continue
@@ -81,6 +86,7 @@ def run_i_pibt[T](
         goals: Dict[str, Node] | None = None,
         node_name_to_agent_dict: Dict[str, T] | None = None,
         node_name_to_agent_list: List[str] | None = None,
+        blocked_nodes: List[Node] | None = None
 ) -> Dict[str, Node]:
     if config_from is None:
         config_from: Dict[str, Node] = {agent.name: agent.curr_node for agent in agents}
@@ -88,12 +94,14 @@ def run_i_pibt[T](
         config_to: Dict[str, Node] = {}
     if goals is None:
         goals: Dict[str, Node] = {agent.name: agent.goal_node for agent in agents}
+    if blocked_nodes is None:
+        blocked_nodes = []
     if node_name_to_agent_dict is None:
         node_name_to_agent_dict: Dict[str, T] = {a.curr_node.xy_name: a for a in agents}
         node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
         heapq.heapify(node_name_to_agent_list)
     _ = procedure_i_pibt(main_agent, nodes_dict, h_dict, config_from, config_to, goals,
-                         node_name_to_agent_dict, node_name_to_agent_list)
+                         node_name_to_agent_dict, node_name_to_agent_list, blocked_nodes)
     return config_to
 
 

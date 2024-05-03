@@ -276,6 +276,9 @@ class AlgCGAR(AlgGeneric):
             plot_rate = 0.001
             # plot_rate = 2
 
+        blocked_nodes = [self.main_agent.goal_node]
+        self.non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, blocked_nodes=blocked_nodes)
+
         iteration = 0
         while self.main_agent.curr_node != self.main_agent.goal_node:
             if len(self.main_agent.path) - 1 < iteration:
@@ -289,10 +292,10 @@ class AlgCGAR(AlgGeneric):
                 main_next_node = get_min_h_nei_node(self.main_agent.curr_node, self.main_agent.goal_node, self.nodes_dict, self.h_dict)
                 if self.non_sv_nodes_np[main_next_node.x, main_next_node.y]:
                     # calc single PIBT step
-                    self.calc_pibt_step(iteration)
+                    self.calc_pibt_step(iteration, blocked_nodes)
                 else:
                     # calc evacuation of agents from the corridor
-                    self.calc_ep_steps(iteration)
+                    self.calc_ep_steps(iteration, blocked_nodes)
 
             # execute the step
             for agent in self.agents:
@@ -314,17 +317,46 @@ class AlgCGAR(AlgGeneric):
                 # plot_total_finished_goals(ax[1], plot_info)
                 # plot_unique_movements(ax[1], plot_info)
                 plt.pause(plot_rate)
-                if i_agent.prev_node == i_agent.curr_node:
-                    print(f'\n{iteration=} | {i_agent.name=}')
 
         # Reverse part
-        pass
+        for agent in self.agents:
+            if agent != self.main_agent:
+                reverse_path = agent.path[:-1]
+                reverse_path.reverse()
+                agent.path.extend(reverse_path)
+            else:
+                agent.path.extend([agent.path[-1] for _ in range(len(agent.path) - 1)])
+
+        while iteration < len(self.main_agent.path):
+            # execute the step
+            for agent in self.agents:
+                next_node = agent.path[iteration]
+                agent.prev_node = agent.curr_node
+                agent.curr_node = next_node
+
+            # updates after the step execution
+            iteration += 1
+
+            # print + render
+            print(f'\r[CGAR] {iteration=} | ', end='')
+
+            if to_render and iteration >= 0:
+                # i_agent = self.agents_dict['agent_0']
+                i_agent = self.agents[0]
+                plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, }
+                plot_step_in_env(ax[0], plot_info)
+                # plot_total_finished_goals(ax[1], plot_info)
+                # plot_unique_movements(ax[1], plot_info)
+                plt.pause(plot_rate)
 
         paths_dict = {a.name: a.path for a in self.agents}
+        for agent in self.agents:
+            if agent != self.main_agent:
+                assert agent.path[-1] == agent.start_node
         return True, paths_dict
 
-    def calc_pibt_step(self, iteration: int):
-        print(f'\n --- inside calc_pibt_step {iteration} --- ')
+    def calc_pibt_step(self, iteration: int, blocked_nodes: List[Node]):
+        # print(f'\n --- inside calc_pibt_step {iteration} --- ')
         assert len(self.main_agent.path) - 1 < iteration
         # Preps
         config_to = {}
@@ -333,7 +365,7 @@ class AlgCGAR(AlgGeneric):
                 config_to[agent.name] = agent.path[iteration]
 
         # Calc PIBT
-        config_to = run_i_pibt(self.main_agent, self.agents, self.nodes_dict, self.h_dict, config_to=config_to)
+        config_to = run_i_pibt(self.main_agent, self.agents, self.nodes_dict, self.h_dict, config_to=config_to, blocked_nodes=blocked_nodes)
         for agent in self.agents:
             if agent.name not in config_to:
                 config_to[agent.name] = agent.curr_node
@@ -343,7 +375,7 @@ class AlgCGAR(AlgGeneric):
             next_node = config_to[agent.name]
             agent.path.append(next_node)
 
-    def calc_ep_steps(self, iteration: int):
+    def calc_ep_steps(self, iteration: int, blocked_nodes: List[Node]):
         """
         - Build corridor
         - Build EP for ev-agents in the corridor
@@ -351,7 +383,7 @@ class AlgCGAR(AlgGeneric):
         - Build the steps in the corridor to the main agent
         """
         # Build corridor
-        print(f'\n --- inside calc_ep_steps {iteration} --- ')
+        # print(f'\n --- inside calc_ep_steps {iteration} --- ')
         corridor = build_corridor(self.main_agent, self.nodes_dict, self.h_dict, self.non_sv_nodes_np)
         # Build EvPaths (evacuation paths) for ev-agents in the corridor
         curr_n_name_to_a_dict: Dict[str, AlgCGARAgent] = {a.path[-1].xy_name: a for a in self.agents}

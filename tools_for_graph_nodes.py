@@ -221,7 +221,9 @@ def copy_nodes(nodes: List[Node]) -> Tuple[List[Node], Dict[str, Node]]:
     return new_nodes, new_nodes_dict
 
 
-def is_freedom_node(node: Node, nodes_dict: Dict[str, Node]) -> bool:
+def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List[Node] | None = None) -> bool:
+    if blocked_nodes is None:
+        blocked_nodes = []
     assert len(node.neighbours) != 0
     assert len(node.neighbours) != 1
     if len(node.neighbours) == 2:
@@ -263,6 +265,8 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node]) -> bool:
             if nei_name in open_names_list_heap:
                 continue
             nei_node = nodes_dict[nei_name]
+            if nei_node in blocked_nodes:
+                continue
 
             open_list.appendleft(nei_node)
             heapq.heappush(open_names_list_heap, nei_name)
@@ -271,29 +275,34 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node]) -> bool:
     return False
 
 
-def get_non_sv_nodes_np(nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray, img_dir: str,
-                        folder_dir: str = 'logs_for_freedom_maps') -> np.ndarray:
+def get_non_sv_nodes_np(nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray,
+                        blocked_nodes: List[Node] | None = None,
+                        img_dir: str | None = None, folder_dir: str = 'logs_for_freedom_maps') -> np.ndarray:
     # print('Started to get freedom nodes...')
     # load
-    possible_dir = f'{folder_dir}/{img_dir[:-4]}.npy'
-    if os.path.exists(possible_dir):
-        with open(possible_dir, 'rb') as f:
-            freedom_nodes_np = np.load(f)
-            return freedom_nodes_np
+    if img_dir is not None:
+        possible_dir = f'{folder_dir}/{img_dir[:-4]}.npy'
+        if os.path.exists(possible_dir):
+            with open(possible_dir, 'rb') as f:
+                non_sv_nodes_np = np.load(f)
+                return non_sv_nodes_np
 
     # if no saved freedom map:
-    freedom_nodes_np = np.zeros(img_np.shape)
+    if blocked_nodes is None:
+        blocked_nodes = []
+    non_sv_nodes_np = np.zeros(img_np.shape)
     for node in nodes:
-        if is_freedom_node(node, nodes_dict):
-            freedom_nodes_np[node.x, node.y] = 1
+        if is_freedom_node(node, nodes_dict, blocked_nodes=blocked_nodes):
+            non_sv_nodes_np[node.x, node.y] = 1
     # print('Finished freedom nodes.')
 
     # save
-    if os.path.exists('logs_for_freedom_maps'):
-        with open(possible_dir, 'wb') as f:
-            np.save(f, freedom_nodes_np)
-        # print('Saved freedom nodes.')
-    return freedom_nodes_np
+    if img_dir is not None:
+        if os.path.exists('logs_for_freedom_maps'):
+            with open(possible_dir, 'wb') as f:
+                np.save(f, non_sv_nodes_np)
+            # print('Saved freedom nodes.')
+    return non_sv_nodes_np
 
 
 def main():

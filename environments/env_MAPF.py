@@ -33,8 +33,8 @@ class SimEnvMAPF:
         self.h_dict = parallel_build_heuristic_for_entire_map(self.nodes, self.nodes_dict, self.map_dim,
                                                               img_dir=img_dir, path=path_to_heuristics)
         self.h_func = h_func_creator(self.h_dict)
-        self.non_sv_nodes_np: np.ndarray = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, self.img_dir,
-                                                               folder_dir='../logs_for_freedom_maps')
+        self.non_sv_nodes_np: np.ndarray = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np,
+                                                               img_dir=self.img_dir, folder_dir='../logs_for_freedom_maps')
         self.agents: List[SimAgentMAPF] = []
         self.agents_dict: Dict[str, SimAgentMAPF] = {}
         self.start_nodes: List[Node] = []
