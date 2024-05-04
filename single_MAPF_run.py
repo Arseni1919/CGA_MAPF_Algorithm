@@ -10,14 +10,14 @@ def single_mapf_run(AlgClass, is_SACGR=True):
     # General params
     # ------------------------------------------------------------------------------------------------------------ #
     # set_seed(random_seed_bool=False, seed=381)
-    # set_seed(random_seed_bool=False, seed=6542)  # 500
-    set_seed(random_seed_bool=True)
+    set_seed(random_seed_bool=False, seed=4922)  # 700
+    # set_seed(random_seed_bool=True)
 
     if is_SACGR:
         # ------------------------------------------------------------------------------------------------------------ #
         # SACGR
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 700
+        N = 300
         # img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
         # img_dir = '15-15-six-rooms.map'
