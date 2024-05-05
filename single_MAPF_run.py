@@ -17,8 +17,9 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # SACGR
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 400
-        # img_dir = '15-15-two-rooms.map'
+        N = 150
+        i_problems = 1
+        img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
         # img_dir = '15-15-six-rooms.map'
         # img_dir = '15-15-eight-rooms.map'
@@ -27,7 +28,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # img_dir = 'empty-32-32.map'
         # img_dir = 'random-32-32-10.map'
         # img_dir = 'random-32-32-20.map'
-        img_dir = 'maze-32-32-4.map'
+        # img_dir = 'maze-32-32-4.map'
         # img_dir = 'maze-32-32-2.map'
         # img_dir = 'room-32-32-4.map'
         # limits
@@ -46,8 +47,9 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 100
-        # img_dir = '15-15-two-rooms.map'
+        N = 50
+        i_problems = 3
+        img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
         # img_dir = '15-15-six-rooms.map'
         # img_dir = '15-15-eight-rooms.map'
@@ -58,7 +60,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # img_dir = 'random-32-32-20.map'
         # img_dir = 'maze-32-32-4.map'
         # img_dir = 'maze-32-32-2.map'
-        img_dir = 'room-32-32-4.map'
+        # img_dir = 'room-32-32-4.map'
         # limits
         max_time = 1e7  # seconds
         # debug
@@ -66,13 +68,13 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # to_check_paths = False
         to_assert = True
         # rendering
-        to_render = True
-        # to_render = False
+        # to_render = True
+        to_render = False
         to_save_animation = False
         # to_do_animation = True
         to_do_animation = False
 
-    for i_problem in range(10):
+    for i_problem in range(i_problems):
         # problem creation
         env = SimEnvMAPF(img_dir=img_dir, is_SACGR=is_SACGR)
         start_nodes = random.sample(env.nodes, N)

@@ -159,6 +159,7 @@ def check_paths(agents: list, from_iteration: int = 1) -> None:
     for next_i in range(from_iteration, max_len):
         agents_to_check = [a for a in agents if next_i < len(a.path)]
         check_vc_ec_neic_iter(agents_to_check, next_i)
+    print('\n ------------- Paths are good! -------------')
 
 
 def plan_has_no_conf_with_vertex(plan, vertex):

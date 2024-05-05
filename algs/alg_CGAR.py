@@ -4,7 +4,7 @@ from tools_for_graph_nodes import *
 from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
-from algs.alg_PIBT import run_i_pibt
+from algs.alg_PIBT import run_i_pibt, build_vc_ec_from_configs
 
 
 def build_corridor[T](main_agent: T, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray) -> List[Node]:
@@ -134,145 +134,145 @@ def push_main_agent[T](main_agent: T, corridor: List[Node], moved_agents: List[T
         c_n_last_visit = corridor_last_visit_count_dict[c_n.xy_name]
         while len(main_agent.path) <= c_n_last_visit:
             main_agent.path.append(prev_n)
+        assert c_n.xy_name in prev_n.neighbours
         main_agent.path.append(c_n)
         prev_n = c_n
 
 
-def execute_backward_steps[T](backward_step_agents: List[T], future_captured_node_names: List[str], returns_dict: Dict[str, List[str]], agents_dict: Dict[str, T], iteration: int) -> None:
+def get_list_of_next_return_nodes[T](agent: T, config_from: Dict[str, Node]) -> List[Node]:
+    agent_curr_node = config_from[agent.name]
+    assert len(agent.return_nodes) != 0
+    # assert agent.return_nodes[-1] == agent_curr_node
+    # you are at the goal location
+    if len(agent.return_nodes) == 1 and agent_curr_node == agent.goal_node:
+        return [agent_curr_node]
+    # you need to move
+    if agent.return_nodes[-1] == agent_curr_node:
+        agent.return_nodes = agent.return_nodes[:-1]
+    assert agent.return_nodes[-1] != agent_curr_node
+    next_possible_node = agent.return_nodes[-1]
+    # if you are first in the waiting list return both
+    pass
+    # if you are the second in the waiting list and somebody who was later (the first place) and he is on the spot -> return both
+    pass
+    # otherwise -> return curr_node
+    return [next_possible_node, agent_curr_node]
+
+
+def procedure_i_pibt_back_step[T](agent: T, config_from: Dict[str, Node], config_to: Dict[str, Node], future_captured_node_names: List[str], agents_dict: Dict[str, T], from_n_to_a_name_dict: Dict[str, str]) -> bool:
+    agent_name = agent.name
+    agent_curr_node = config_from[agent_name]
+    vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
+    domain: List[Node] = get_list_of_next_return_nodes(agent, config_from)
+    for nei_node in domain:
+        # vc
+        if (nei_node.x, nei_node.y) in vc_set:
+            continue
+        # ec
+        if (nei_node.x, nei_node.y, agent_curr_node.x, agent_curr_node.y) in ec_set:
+            continue
+        # blocked
+        if nei_node.xy_name in future_captured_node_names:
+            continue
+
+        config_to[agent_name] = nei_node
+        if nei_node.xy_name in from_n_to_a_name_dict:
+            next_agent_name = from_n_to_a_name_dict[nei_node.xy_name]
+            next_agent = agents_dict[next_agent_name]
+            if agent != next_agent and next_agent_name not in config_to:
+                next_is_valid = procedure_i_pibt_back_step(
+                    next_agent, config_from, config_to, future_captured_node_names, agents_dict, from_n_to_a_name_dict)
+                if not next_is_valid:
+                    continue
+        if nei_node == agent.return_nodes[-1] and len(agent.return_nodes) > 1:
+            agent.return_nodes = agent.return_nodes[:-1]
+        return True
+    config_to[agent_name] = agent_curr_node
+    return False
+
+
+def get_intersect_agents[T](agent: T, backward_step_agents: List[T], agents: List[T]) -> Tuple[List[T], List[str]]:
+    # find the full connected component and not only the direct neighbours
+    all_nodes_a1_group: List[str] = []
+    intersect_agents: List[T] = []
+    open_list: List[T] = [agent]
+    open_list_names: List[str] = [agent.name]
+    closed_list_names: List[str] = []
+    while len(open_list) > 0:
+        next_agent = open_list.pop()
+        open_list_names.remove(next_agent.name)
+        if next_agent.name in open_list_names:
+            continue
+        if next_agent.name in closed_list_names:
+            continue
+        next_l = [n.xy_name for i, n in next_agent.return_path_tuples]
+        all_nodes_a1_group.extend(next_l)
+        if next_agent in backward_step_agents:
+            intersect_agents.append(next_agent)
+        for agent_2 in agents:
+            if agent_2 == next_agent:
+                continue
+            if agent_2.name in open_list_names:
+                continue
+            if agent_2.name in closed_list_names:
+                continue
+            a2_l = [n.xy_name for i, n in agent_2.return_path_tuples]
+            if not set(next_l).isdisjoint(a2_l):
+                open_list.append(agent_2)
+                heapq.heappush(open_list_names, agent_2.name)
+        heapq.heappush(closed_list_names, next_agent.name)
+    all_nodes_a1_group = list(set(all_nodes_a1_group))
+    assert len(intersect_agents) == len(set(intersect_agents))
+    return intersect_agents, all_nodes_a1_group
+
+
+def execute_backward_steps[T](backward_step_agents: List[T], future_captured_node_names: List[str], agents: List[T], nodes: List[Node], iteration: int) -> None:
     for agent in backward_step_agents:
         assert len(agent.path) == iteration
-    config_from: Dict[str, Node] = {a.name: a.path[-1] for a in backward_step_agents}
-    config_to: Dict[str, Node] = {}
+        assert len(agent.return_path_tuples) != 0
+    # for agent in backward_step_agents:
+    #     agent.path.append(agent.path[-1])
+    # return
+    for agent_1 in backward_step_agents:
+        if agent_1.num in [147] and len(agent_1.path) == iteration:
+            print(f'\nexecute_backward_steps {agent_1.name}: {agent_1.return_path_tuples_names}')
+        # If you need to plan
+        if len(agent_1.path) == iteration:
+            intersect_agents, all_nodes_a1_group = get_intersect_agents(agent_1, backward_step_agents, agents)
+            # If there are no possible collisions with the planned agents
+            if set(all_nodes_a1_group).isdisjoint(future_captured_node_names):
+                for i_agent in intersect_agents:
+                    assert len(i_agent.return_path_tuples) != 0
+                    assert i_agent.return_path_tuples[-1][1] == i_agent.path[-1]
+                    if len(i_agent.return_path_tuples) == 1:
+                        i_1, next_p_node = i_agent.return_path_tuples[-1]
+                        assert next_p_node == i_agent.goal_node
+                        i_agent.path.append(next_p_node)
+                        i_agent.return_path_tuples = deque([(iteration, next_p_node)])
+                        continue
+                    i_2, curr_node = i_agent.return_path_tuples.pop()
+                    i_3, next_p_node = i_agent.return_path_tuples[-1]
+                    assert i_agent.path[-1].xy_name in next_p_node.neighbours
+                    i_agent.path.append(next_p_node)
+                    i_agent.return_path_tuples = deque([(tpl[0] + 2, tpl[1]) for tpl in i_agent.return_path_tuples])
+            else:
+                for i_agent in intersect_agents:
+                    i_agent.path.append(i_agent.path[-1])  # !!!
+                    i_agent.return_path_tuples.append((iteration, i_agent.path[-1]))
 
-    for agent in backward_step_agents:
-        from_node: Node = config_from[agent.name]
-        assert len(agent.return_nodes) != 0
-        if len(agent.return_nodes) == 1:
-            assert agent.return_nodes[0] == agent.goal_node
-            config_to[agent.name] = from_node
-            continue
-        assert from_node == agent.return_nodes[-1]
-        next_possible_node = agent.return_nodes[-2]
-        next_possible_node_name = next_possible_node.xy_name
-        if next_possible_node_name in future_captured_node_names:
-            config_to[agent.name] = from_node
-            continue
-        next_possible_n_visitors = returns_dict[next_possible_node_name]
-        assert agent.name in next_possible_n_visitors
-        assert len(next_possible_n_visitors) != 0
-        if len(next_possible_n_visitors) == 1:
-            assert next_possible_n_visitors[0] == agent.name
-            agent.return_nodes = agent.return_nodes[:-1]
-            config_to[agent.name] = next_possible_node
-            continue
-        last_two_visitors_names = next_possible_n_visitors[-2:]
-        if len(last_two_visitors_names) >= 2 and agent.name not in last_two_visitors_names:
-            config_to[agent.name] = from_node
-            continue
 
-    config_to_n_names: List[str] = [n.xy_name for n in config_to.values()]
-    heapq.heapify(config_to_n_names)
-    config_from_n_names: List[str] = [n.xy_name for n in config_from.values()]
-    heapq.heapify(config_from_n_names)
-    from_n_to_a_dict = {v.xy_name: k for k, v in config_from.items()}
-    assert len(from_n_to_a_dict) == len(config_from)
-
-    for agent in backward_step_agents:
-        if agent.name not in config_to:
-            next_possible_node = agent.return_nodes[-2]
-            next_possible_node_name = next_possible_node.xy_name
-            config_to[agent.name] = next_possible_node
-
-    there_are_collisions = True
-    while there_are_collisions:
-        there_are_collisions = False
-        for agent1, agent2 in combinations(backward_step_agents, 2):
-            a1_from_node = config_from[agent1.name]
-            a1_to_node = config_to[agent1.name]
-            a2_from_node = config_from[agent2.name]
-            a2_to_node = config_to[agent2.name]
-            if a1_to_node == a2_to_node:
-                config_to[agent1.name] = a1_from_node
-                config_to[agent2.name] = a2_from_node
-                there_are_collisions = True
-                break
-            if a1_from_node == a2_to_node and a1_to_node == a2_from_node:
-                config_to[agent1.name] = a1_from_node
-                config_to[agent2.name] = a2_from_node
-                there_are_collisions = True
-                break
-
-    for agent in backward_step_agents:
-        a_from_node = config_from[agent.name]
-        a_to_node = config_to[agent.name]
-        if a_from_node != a_to_node:
-            next_n_visitors = returns_dict[a_from_node.xy_name]
-            next_n_visitors.remove(agent.name)
-            if len(agent.return_nodes) >= 2 and agent.return_nodes[-1] == a_from_node and agent.return_nodes[-2] == a_to_node:
-                agent.return_nodes = agent.return_nodes[:-1]
-
+    # for agent in backward_step_agents:
+    #     if len(agent.return_path_tuples_names) > 1:
+    #         print(f'{agent.name}: {agent.return_path_tuples_names}')
 
     # update paths + execute the step
     for agent in backward_step_agents:
-        assert agent.path[-1].xy_name in config_to[agent.name].neighbours
-        next_node = config_to[agent.name]
-        agent.path.append(next_node)
+        assert len(agent.path) == iteration + 1
         agent.prev_node = agent.curr_node
-        agent.curr_node = next_node
-
-    # while len(config_to) < len(config_from):
-    #     for agent in backward_step_agents:
-    #         from_node = config_from[agent.name]
-    #         assert agent.return_nodes[-1] == from_node
-    #         next_possible_node = agent.return_nodes[-2]
-    #         next_possible_node_name = next_possible_node.xy_name
-    #         next_possible_n_visitors = returns_dict[next_possible_node_name]
-    #         if next_possible_node_name in config_to_n_names:
-    #             config_to[agent.name] = from_node
-    #             heapq.heappush(config_to_n_names, from_node.xy_name)
-    #             break
-    #
-    #
-    #
-    #
-    # for agent in backward_step_agents:
-    #     if agent.name not in config_to:
-    #         # config_to[agent.name] = agent.path[-1]
-    #         open_list: Deque[T] = deque([agent])
-    #         while len(open_list) > 0:
-    #             next_agent = open_list.popleft()
-    #             next_possible_node = next_agent.return_nodes[-2]
-    #             next_possible_node_name = next_possible_node.xy_name
-    #             next_possible_n_visitors = returns_dict[next_possible_node_name]
-    #             assert next_agent.name in next_possible_n_visitors[-2:]
-    #             if next_possible_node_name in config_to_n_names:
-    #                 next_node: Node = next_agent.path[-1]
-    #                 config_to[next_agent.name] = next_node
-    #                 heapq.heappush(config_to_n_names, next_node.xy_name)
-    #                 continue
-    #             if next_possible_node_name not in config_from_n_names:
-    #                 next_agent.return_nodes = next_agent.return_nodes[:-1]
-    #                 config_to[next_agent.name] = next_possible_node
-    #                 heapq.heappush(config_to_n_names, next_possible_node_name)
-    #                 next_possible_n_visitors.remove(next_agent.name)
-    #                 continue
-    #
-    #             agent_to_push_name = from_n_to_a_dict[next_possible_node_name]
-    #             agent_to_push = agents_dict[agent_to_push_name]
-    #             if agent_to_push_name in config_to:
-    #                 assert config_to[agent_to_push_name] != next_possible_node
-    #                 next_agent.return_nodes = next_agent.return_nodes[:-1]
-    #                 config_to[next_agent.name] = next_possible_node
-    #                 heapq.heappush(config_to_n_names, next_possible_node_name)
-    #                 next_possible_n_visitors.remove(next_agent.name)
-    #                 continue
-    #             open_list.appendleft(next_agent)
-    #             open_list.appendleft(agent_to_push)
-
-
-            # next_possible_n_visitors.pop()
-            # self.return_nodes = self.return_nodes[:-1]
-            # self.path.append(next_possible_node)
+        agent.curr_node = agent.path[iteration]
+        assert agent.curr_node == agent.return_path_tuples[-1][1]
+        assert agent.prev_node.xy_name in agent.curr_node.neighbours
+    return
 
 
 class AlgCGARAgent:
@@ -284,7 +284,10 @@ class AlgCGARAgent:
         self.goal_node: Node = goal_node
         self.path: List[Node] = [start_node]
         self.first_arrived: bool = self.curr_node == self.goal_node
-        self.return_nodes: List[Node] = [self.goal_node]
+        if self.first_arrived:
+            self.return_path_tuples: Deque[Tuple[int, Node]] = deque([(0, self.goal_node)])
+        else:
+            self.return_path_tuples: Deque[Tuple[int, Node]] = deque()
         self.arrived: bool = self.first_arrived
 
     @property
@@ -299,6 +302,9 @@ class AlgCGARAgent:
     def return_nodes_names(self):
         return [n.xy_name for n in self.return_nodes]
 
+    @property
+    def return_path_tuples_names(self):
+        return [(tpl[0], tpl[1].xy_name) for tpl in self.return_path_tuples]
     @property
     def last_path_node_name(self):
         return self.path[-1].xy_name
@@ -325,21 +331,19 @@ class AlgCGARAgent:
     def __hash__(self):
         return hash(self.name)
 
-    def execute_forward_step(self, iteration: int, returns_dict: Dict[str, List[str]]) -> None:
+    def execute_forward_step(self, iteration: int) -> None:
         # execute the step
-        next_node = self.path[iteration]
         self.prev_node = self.curr_node
-        self.curr_node = next_node
+        self.curr_node = self.path[iteration]
+        assert self.prev_node.xy_name in self.curr_node.neighbours
 
         # for the back-steps
-        if self.curr_node == self.goal_node:
-            self.first_arrived = True
         if self.first_arrived:
-            if self.curr_node != self.return_nodes[-1]:
-                assert self.curr_node.xy_name in self.return_nodes[-1].neighbours
-                self.return_nodes.append(self.curr_node)
-                returns_dict[self.curr_node.xy_name].append(self.name)
-                # returns_dict[self.prev_node.xy_name].append(self.name)
+            # self.return_path_tuples.append((iteration, self.curr_node))
+            if len(self.return_path_tuples) == 1 and self.curr_node == self.goal_node:
+                self.return_path_tuples = deque([(iteration, self.curr_node)])
+                return
+            self.return_path_tuples.append((iteration, self.curr_node))
 
     def execute_backward_step(self, iteration: int, returns_dict: Dict[str, List[str]], config_to_node_names: List[str]) -> None:
         assert len(self.return_nodes) != 0
@@ -397,7 +401,6 @@ class AlgCGAR(AlgGeneric):
         self.agents: List[AlgCGARAgent] = []
         self.agents_dict: Dict[str, AlgCGARAgent] = {}
         self.main_agent: AlgCGARAgent | None = None
-        self.returns_dict: Dict[str, List[str]] = {n.xy_name: [] for n in self.nodes}
 
         # logs
         self.logs: dict | None = None
@@ -422,7 +425,6 @@ class AlgCGAR(AlgGeneric):
         # create agents
         self.agents = []
         self.agents_dict = {}
-        self.returns_dict: Dict[str, List[str]] = {n.xy_name: [] for n in self.nodes}
         for agent_name in obs['agents_names']:
             obs_agent = obs[agent_name]
             num = obs_agent.num
@@ -431,8 +433,6 @@ class AlgCGAR(AlgGeneric):
             new_agent = AlgCGARAgent(num=num, start_node=start_node, goal_node=goal_node)
             self.agents.append(new_agent)
             self.agents_dict[new_agent.name] = new_agent
-            if new_agent.start_node == new_agent.goal_node:
-                self.returns_dict[new_agent.goal_node.xy_name].append(new_agent.name)
 
         self.main_agent = self.agents_dict[obs['main_agent_name']]
 
@@ -445,6 +445,7 @@ class AlgCGAR(AlgGeneric):
         if self.non_sv_nodes_np[self.main_agent.curr_node.x, self.main_agent.curr_node.y]:
             return True, 'good'
         # if there are enough free locations to allow the main agent to pass
+        return True, 'good'
         # TODO: check the function ↓
         return is_enough_free_locations(self.main_agent.start_node, self.main_agent.goal_node, self.nodes_dict,
                                         self.h_dict, self.start_nodes, self.non_sv_nodes_np)
@@ -468,7 +469,7 @@ class AlgCGAR(AlgGeneric):
         if to_render:
             fig, ax = plt.subplots(1, 2, figsize=(14, 7))
             plot_rate = 0.001
-            # plot_rate = 2
+            # plot_rate = 4
 
         blocked_nodes = [self.main_agent.goal_node]
         self.non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, blocked_nodes=blocked_nodes)
@@ -495,7 +496,7 @@ class AlgCGAR(AlgGeneric):
             forward_step_agents: List[AlgCGARAgent] = []
             backward_step_agents: List[AlgCGARAgent] = []
             for agent in self.agents:
-                if len(agent.path) - 1 >= iteration:
+                if len(agent.path) > iteration:
                     forward_step_agents.append(agent)
                     for n in agent.path[iteration:]:
                         heapq.heappush(future_captured_node_names, n.xy_name)
@@ -504,13 +505,10 @@ class AlgCGAR(AlgGeneric):
 
             # execute the step
             for agent in forward_step_agents:
-                agent.execute_forward_step(iteration, self.returns_dict)
+                agent.execute_forward_step(iteration)
+            execute_backward_steps(backward_step_agents, future_captured_node_names, self.agents, self.nodes, iteration)
 
-            execute_backward_steps(backward_step_agents, future_captured_node_names, self.returns_dict, self.agents_dict, iteration)
-
-            # for agent in backward_step_agents:
-            #     agent.execute_backward_step(iteration, self.returns_dict, future_captured_node_names)
-
+            check_vc_ec_neic_iter(self.agents, iteration)
 
             # updates after the step execution
             iteration += 1
@@ -523,40 +521,9 @@ class AlgCGAR(AlgGeneric):
                 i_agent = self.agents[0]
                 plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, }
                 plot_step_in_env(ax[0], plot_info)
-                # plot_total_finished_goals(ax[1], plot_info)
+                plot_return_nodes(ax[1], plot_info)
                 # plot_unique_movements(ax[1], plot_info)
                 plt.pause(plot_rate)
-
-        # Baseline reverse part
-        # for agent in self.agents:
-        #     if agent != self.main_agent:
-        #         reverse_path = agent.path[:-1]
-        #         reverse_path.reverse()
-        #         agent.path.extend(reverse_path)
-        #     else:
-        #         agent.path.extend([agent.path[-1] for _ in range(len(agent.path) - 1)])
-        #
-        # while iteration < len(self.main_agent.path):
-        #     # execute the step
-        #     for agent in self.agents:
-        #         next_node = agent.path[iteration]
-        #         agent.prev_node = agent.curr_node
-        #         agent.curr_node = next_node
-        #
-        #     # updates after the step execution
-        #     iteration += 1
-        #
-        #     # print + render
-        #     print(f'\r[CGAR] {iteration=} | ', end='')
-        #
-        #     if to_render and iteration >= 0:
-        #         # i_agent = self.agents_dict['agent_0']
-        #         i_agent = self.agents[0]
-        #         plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, }
-        #         plot_step_in_env(ax[0], plot_info)
-        #         # plot_total_finished_goals(ax[1], plot_info)
-        #         # plot_unique_movements(ax[1], plot_info)
-        #         plt.pause(plot_rate)
 
         paths_dict = {a.name: a.path for a in self.agents}
         for agent in self.agents:
@@ -564,6 +531,7 @@ class AlgCGAR(AlgGeneric):
                 assert agent.path[-1] == agent.goal_node
             else:
                 assert agent.path[-1] == agent.start_node
+        check_paths(self.agents, 0)
         return True, paths_dict
 
     def calc_pibt_step(self, iteration: int, blocked_nodes: List[Node]):
@@ -643,3 +611,184 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# Baseline reverse part
+# for agent in self.agents:
+#     if agent != self.main_agent:
+#         reverse_path = agent.path[:-1]
+#         reverse_path.reverse()
+#         agent.path.extend(reverse_path)
+#     else:
+#         agent.path.extend([agent.path[-1] for _ in range(len(agent.path) - 1)])
+#
+# while iteration < len(self.main_agent.path):
+#     # execute the step
+#     for agent in self.agents:
+#         next_node = agent.path[iteration]
+#         agent.prev_node = agent.curr_node
+#         agent.curr_node = next_node
+#
+#     # updates after the step execution
+#     iteration += 1
+#
+#     # print + render
+#     print(f'\r[CGAR] {iteration=} | ', end='')
+#
+#     if to_render and iteration >= 0:
+#         # i_agent = self.agents_dict['agent_0']
+#         i_agent = self.agents[0]
+#         plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, }
+#         plot_step_in_env(ax[0], plot_info)
+#         # plot_total_finished_goals(ax[1], plot_info)
+#         # plot_unique_movements(ax[1], plot_info)
+#         plt.pause(plot_rate)
+
+
+    # for agent in backward_step_agents:
+    #     from_node: Node = config_from[agent.name]
+    #     assert len(agent.return_nodes) != 0
+    #     if len(agent.return_nodes) == 1:
+    #         assert agent.return_nodes[0] == agent.goal_node
+    #         config_to[agent.name] = from_node
+    #         continue
+    #     assert from_node == agent.return_nodes[-1]
+    #     next_possible_node = agent.return_nodes[-2]
+    #     next_possible_node_name = next_possible_node.xy_name
+    #     if next_possible_node_name in future_captured_node_names:
+    #         config_to[agent.name] = from_node
+    #         continue
+    #     next_possible_n_visitors = returns_dict[next_possible_node_name]
+    #     assert agent.name in next_possible_n_visitors
+    #     assert len(next_possible_n_visitors) != 0
+    #     if len(next_possible_n_visitors) == 1:
+    #         assert next_possible_n_visitors[0] == agent.name
+    #         agent.return_nodes = agent.return_nodes[:-1]
+    #         config_to[agent.name] = next_possible_node
+    #         continue
+    #     last_two_visitors_names = next_possible_n_visitors[-2:]
+    #     if len(last_two_visitors_names) >= 2 and agent.name not in last_two_visitors_names:
+    #         config_to[agent.name] = from_node
+    #         continue
+    #
+    # config_to_n_names: List[str] = [n.xy_name for n in config_to.values()]
+    # heapq.heapify(config_to_n_names)
+    # config_from_n_names: List[str] = [n.xy_name for n in config_from.values()]
+    # heapq.heapify(config_from_n_names)
+    # from_n_to_a_name_dict: Dict[str, str] = {v.xy_name: k for k, v in config_from.items()}
+    # assert len(from_n_to_a_name_dict) == len(config_from)
+    #
+    # for agent in backward_step_agents:
+    #     if agent.name not in config_to:
+    #         next_possible_node = agent.return_nodes[-2]
+    #         next_possible_node_name = next_possible_node.xy_name
+    #         config_to[agent.name] = next_possible_node
+    #
+    # there_are_collisions = True
+    # while there_are_collisions:
+    #     there_are_collisions = False
+    #     for agent1, agent2 in combinations(backward_step_agents, 2):
+    #         a1_from_node = config_from[agent1.name]
+    #         a1_to_node = config_to[agent1.name]
+    #         a2_from_node = config_from[agent2.name]
+    #         a2_to_node = config_to[agent2.name]
+    #         if a1_to_node == a2_to_node:
+    #             config_to[agent1.name] = a1_from_node
+    #             config_to[agent2.name] = a2_from_node
+    #             there_are_collisions = True
+    #             break
+    #         if a1_from_node == a2_to_node and a1_to_node == a2_from_node:
+    #             config_to[agent1.name] = a1_from_node
+    #             config_to[agent2.name] = a2_from_node
+    #             there_are_collisions = True
+    #             break
+    #
+    # for agent in backward_step_agents:
+    #     a_from_node = config_from[agent.name]
+    #     a_to_node = config_to[agent.name]
+    #     if a_from_node != a_to_node:
+    #         next_n_visitors = returns_dict[a_from_node.xy_name]
+    #         next_n_visitors.remove(agent.name)
+    #         if len(agent.return_nodes) >= 2 and agent.return_nodes[-1] == a_from_node and agent.return_nodes[-2] == a_to_node:
+    #             agent.return_nodes = agent.return_nodes[:-1]
+
+
+    # while len(config_to) < len(config_from):
+    #     for agent in backward_step_agents:
+    #         from_node = config_from[agent.name]
+    #         assert agent.return_nodes[-1] == from_node
+    #         next_possible_node = agent.return_nodes[-2]
+    #         next_possible_node_name = next_possible_node.xy_name
+    #         next_possible_n_visitors = returns_dict[next_possible_node_name]
+    #         if next_possible_node_name in config_to_n_names:
+    #             config_to[agent.name] = from_node
+    #             heapq.heappush(config_to_n_names, from_node.xy_name)
+    #             break
+    #
+    #
+    #
+    #
+    # for agent in backward_step_agents:
+    #     if agent.name not in config_to:
+    #         # config_to[agent.name] = agent.path[-1]
+    #         open_list: Deque[T] = deque([agent])
+    #         while len(open_list) > 0:
+    #             next_agent = open_list.popleft()
+    #             next_possible_node = next_agent.return_nodes[-2]
+    #             next_possible_node_name = next_possible_node.xy_name
+    #             next_possible_n_visitors = returns_dict[next_possible_node_name]
+    #             assert next_agent.name in next_possible_n_visitors[-2:]
+    #             if next_possible_node_name in config_to_n_names:
+    #                 next_node: Node = next_agent.path[-1]
+    #                 config_to[next_agent.name] = next_node
+    #                 heapq.heappush(config_to_n_names, next_node.xy_name)
+    #                 continue
+    #             if next_possible_node_name not in config_from_n_names:
+    #                 next_agent.return_nodes = next_agent.return_nodes[:-1]
+    #                 config_to[next_agent.name] = next_possible_node
+    #                 heapq.heappush(config_to_n_names, next_possible_node_name)
+    #                 next_possible_n_visitors.remove(next_agent.name)
+    #                 continue
+    #
+    #             agent_to_push_name = from_n_to_a_dict[next_possible_node_name]
+    #             agent_to_push = agents_dict[agent_to_push_name]
+    #             if agent_to_push_name in config_to:
+    #                 assert config_to[agent_to_push_name] != next_possible_node
+    #                 next_agent.return_nodes = next_agent.return_nodes[:-1]
+    #                 config_to[next_agent.name] = next_possible_node
+    #                 heapq.heappush(config_to_n_names, next_possible_node_name)
+    #                 next_possible_n_visitors.remove(next_agent.name)
+    #                 continue
+    #             open_list.appendleft(next_agent)
+    #             open_list.appendleft(agent_to_push)
+
+
+            # next_possible_n_visitors.pop()
+            # self.return_nodes = self.return_nodes[:-1]
+            # self.path.append(next_possible_node)
+
+
+
+    # for agent in backward_step_agents:
+    #     # agent.path.append(agent.path[-1])
+    #     # assert config_from[agent.name] == agent.return_nodes[-1]
+    #     valid = procedure_i_pibt_back_step(
+    #         agent, config_from, config_to, future_captured_node_names, agents_dict, from_n_to_a_name_dict)
+    # to_n_to_a_name_dict: Dict[str, str] = {v.xy_name: k for k, v in config_to.items()}
+    # assert len(to_n_to_a_name_dict) == len(config_to)
+
+    # update paths + execute the step
+    # for agent in backward_step_agents:
+    #     assert agent.path[-1].xy_name in config_to[agent.name].neighbours
+    #     next_node = config_to[agent.name]
+    #     agent.path.append(next_node)
+    #     agent.prev_node = agent.curr_node
+    #     agent.curr_node = next_node
+    # return
+
+
+
+
+    # config_from: Dict[str, Node] = {a.name: a.path[-1] for a in backward_step_agents}
+    # config_to: Dict[str, Node] = {}
+    # from_n_to_a_name_dict: Dict[str, str] = {v.xy_name: k for k, v in config_from.items()}
+    # assert len(from_n_to_a_name_dict) == len(config_from)

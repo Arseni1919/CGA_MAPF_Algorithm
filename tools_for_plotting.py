@@ -264,6 +264,52 @@ def plot_step_in_env(ax, info):
     ax.set_title(title_str)
 
 
+def plot_return_nodes(ax, info):
+    ax.cla()
+    # nodes = info['nodes']
+    # a_name = info['i_agent'].name if 'i_agent' in info else 'agent_0'
+    img_np = info['img_np']
+    agents = info['agents']
+
+    field = img_np * -1
+    if 'corridor' in info:
+        corridor = info['corridor']
+        for n in corridor:
+            field[n.x, n.y] = 2
+    if 'occupied_nodes' in info:
+        occupied_nodes = info['occupied_nodes']
+        for n in occupied_nodes:
+            field[n.x, n.y] = 0
+    ax.imshow(field, origin='lower')
+
+    others_y_list, others_x_list, others_cm_list = [], [], []
+    for agent in agents:
+        if 'i_agent' in info and info['i_agent'] == agent:
+            continue
+        rn_x_list, rn_y_list = [], []
+        return_path_tuples = agent.return_path_tuples
+        for i, n in return_path_tuples:
+            rn_x_list.append(n.x)
+            rn_y_list.append(n.y)
+        color = get_color(agent.num)
+        ax.plot(rn_y_list, rn_x_list, 'o-', c=color)
+    # ax.scatter(others_y_list, others_x_list, s=100, c='k')
+    # ax.scatter(others_y_list, others_x_list, s=50, c=np.array(others_cm_list))
+    # ax.scatter(others_y_list, others_x_list, s=50, c='yellow')
+
+    if 'i_agent' in info:
+        i_agent = info['i_agent']
+        curr_node = i_agent.curr_node
+        next_goal_node = i_agent.goal_node
+        ax.scatter([curr_node.y], [curr_node.x], s=120, c='w')
+        ax.scatter([curr_node.y], [curr_node.x], s=70, c='r')
+        ax.scatter([next_goal_node.y], [next_goal_node.x], s=400, c='white', marker='X', alpha=0.4)
+        ax.scatter([next_goal_node.y], [next_goal_node.x], s=200, c='red', marker='X', alpha=0.4)
+
+    title_str = 'plot of return_nodes\n'
+    ax.set_title(title_str)
+
+
 def plot_env_field(ax, info):
     ax.cla()
     # nodes = info['nodes']
