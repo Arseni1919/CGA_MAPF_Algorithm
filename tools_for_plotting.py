@@ -215,8 +215,10 @@ def plot_step_in_env(ax, info):
     # a_name = info['i_agent'].name if 'i_agent' in info else 'agent_0'
     img_np = info['img_np']
     agents = info['agents']
+    non_sv_nodes_np = info['non_sv_nodes_np']
 
     field = img_np * -1
+    field += 0.5 * non_sv_nodes_np * -1
     if 'corridor' in info:
         corridor = info['corridor']
         for n in corridor:
@@ -284,7 +286,7 @@ def plot_return_paths(ax, info):
         occupied_nodes = info['occupied_nodes']
         for n in occupied_nodes:
             field[n.x, n.y] = 0
-    ax.imshow(field, origin='lower')
+    ax.imshow(field, origin='lower', cmap='binary')
 
     others_y_list, others_x_list, others_cm_list = [], [], []
     for agent in agents:

@@ -610,7 +610,7 @@ class AlgCGAR(AlgGeneric):
             if to_render and iteration >= 0:
                 # i_agent = self.agents_dict['agent_0']
                 i_agent = self.agents[0]
-                plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, }
+                plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, 'non_sv_nodes_np': self.non_sv_nodes_np}
                 plot_step_in_env(ax[0], plot_info)
                 plot_return_paths(ax[1], plot_info)
                 plt.pause(plot_rate)
