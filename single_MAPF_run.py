@@ -17,7 +17,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # SACGR
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 600
+        N = 500
         i_problems = 1
         # img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
@@ -36,8 +36,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # debug
         to_check_paths = True
         # to_check_paths = False
-        # to_assert = True
-        to_assert = False
+        to_assert = True
+        # to_assert = False
         # rendering
         to_render = True
         # to_render = False

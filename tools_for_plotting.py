@@ -225,9 +225,9 @@ def plot_step_in_env(ax, info):
         occupied_nodes = info['occupied_nodes']
         for n in occupied_nodes:
             field[n.x, n.y] = 0
-    ax.imshow(field, origin='lower')
+    ax.imshow(field, origin='lower', cmap='binary')
 
-    others_y_list, others_x_list, others_cm_list = [], [], []
+    others_y_list, others_x_list, others_cm_list, alpha_list = [], [], [], []
     for agent in agents:
         if 'i_agent' in info and info['i_agent'] == agent:
             continue
@@ -235,16 +235,20 @@ def plot_step_in_env(ax, info):
         others_y_list.append(curr_node.y)
         others_x_list.append(curr_node.x)
         others_cm_list.append(get_color(agent.num))
-    ax.scatter(others_y_list, others_x_list, s=100, c='k')
-    ax.scatter(others_y_list, others_x_list, s=50, c=np.array(others_cm_list))
+        if agent.curr_node == agent.goal_node:
+            alpha_list.append(0.4)
+        else:
+            alpha_list.append(1)
+    ax.scatter(others_y_list, others_x_list, s=100, c='k', alpha=alpha_list)
+    ax.scatter(others_y_list, others_x_list, s=50, c=np.array(others_cm_list), alpha=alpha_list)
     # ax.scatter(others_y_list, others_x_list, s=50, c='yellow')
 
     if 'i_agent' in info:
         i_agent = info['i_agent']
         curr_node = i_agent.curr_node
         next_goal_node = i_agent.goal_node
-        ax.scatter([curr_node.y], [curr_node.x], s=120, c='w')
-        ax.scatter([curr_node.y], [curr_node.x], s=70, c='r')
+        ax.scatter([curr_node.y], [curr_node.x], s=200, c='k')
+        ax.scatter([curr_node.y], [curr_node.x], s=100, c='r')
         ax.scatter([next_goal_node.y], [next_goal_node.x], s=400, c='white', marker='X', alpha=0.4)
         ax.scatter([next_goal_node.y], [next_goal_node.x], s=200, c='red', marker='X', alpha=0.4)
 
@@ -264,7 +268,7 @@ def plot_step_in_env(ax, info):
     ax.set_title(title_str)
 
 
-def plot_return_nodes(ax, info):
+def plot_return_paths(ax, info):
     ax.cla()
     # nodes = info['nodes']
     # a_name = info['i_agent'].name if 'i_agent' in info else 'agent_0'
@@ -292,7 +296,7 @@ def plot_return_nodes(ax, info):
             rn_x_list.append(n.x)
             rn_y_list.append(n.y)
         color = get_color(agent.num)
-        ax.plot(rn_y_list, rn_x_list, 'o-', c=color)
+        ax.plot(rn_y_list, rn_x_list, '*-', c=color)
     # ax.scatter(others_y_list, others_x_list, s=100, c='k')
     # ax.scatter(others_y_list, others_x_list, s=50, c=np.array(others_cm_list))
     # ax.scatter(others_y_list, others_x_list, s=50, c='yellow')
