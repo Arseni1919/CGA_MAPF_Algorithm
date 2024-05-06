@@ -53,6 +53,9 @@ class Node:
     def __gt__(self, other):
         return self.xy_name > other.xy_name
 
+    def __hash__(self):
+        return hash(self.xy_name)
+
     def reset(self, target_nodes: list | None = None, **kwargs):
         if 'start_time' in kwargs:
             self.t = kwargs['start_time']
@@ -262,6 +265,7 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List
                 continue
             if nei_name in closed_names_list_heap:
                 continue
+
             if nei_name in open_names_list_heap:
                 continue
             nei_node = nodes_dict[nei_name]
@@ -269,6 +273,7 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List
                 continue
 
             open_list.appendleft(nei_node)
+            # open_list.append(nei_node)
             heapq.heappush(open_names_list_heap, nei_name)
         heapq.heappush(closed_names_list_heap, next_node.xy_name)
 
