@@ -243,6 +243,9 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List
 
     first_nei_name = init_nei_names[0]
     init_nei_names.remove(first_nei_name)
+    for n in blocked_nodes:
+        if n.xy_name in init_nei_names:
+            init_nei_names.remove(n.xy_name)
     first_nei = nodes_dict[first_nei_name]
 
     open_list: Deque[Node] = deque([first_nei])

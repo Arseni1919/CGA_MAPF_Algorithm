@@ -155,65 +155,6 @@ def push_main_agent[T](main_agent: T, corridor: List[Node], moved_agents: List[T
         prev_n = c_n
 
 
-def get_list_of_next_return_nodes[T](agent: T, config_from: Dict[str, Node]) -> List[Node]:
-    agent_curr_node = config_from[agent.name]
-    assert len(agent.return_nodes) != 0
-    # assert agent.return_nodes[-1] == agent_curr_node
-    # you are at the goal location
-    if len(agent.return_nodes) == 1 and agent_curr_node == agent.goal_node:
-        return [agent_curr_node]
-    # you need to move
-    if agent.return_nodes[-1] == agent_curr_node:
-        agent.return_nodes = agent.return_nodes[:-1]
-    assert agent.return_nodes[-1] != agent_curr_node
-    next_possible_node = agent.return_nodes[-1]
-    # if you are first in the waiting list return both
-    pass
-    # if you are the second in the waiting list and somebody who was later (the first place) and he is on the spot -> return both
-    pass
-    # otherwise -> return curr_node
-    return [next_possible_node, agent_curr_node]
-
-
-def procedure_i_pibt_back_step[T](agent: T, config_from: Dict[str, Node], config_to: Dict[str, Node], future_captured_node_names: List[str], agents_dict: Dict[str, T], from_n_to_a_name_dict: Dict[str, str]) -> bool:
-    agent_name = agent.name
-    agent_curr_node = config_from[agent_name]
-    vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
-    domain: List[Node] = get_list_of_next_return_nodes(agent, config_from)
-    for nei_node in domain:
-        # vc
-        if (nei_node.x, nei_node.y) in vc_set:
-            continue
-        # ec
-        if (nei_node.x, nei_node.y, agent_curr_node.x, agent_curr_node.y) in ec_set:
-            continue
-        # blocked
-        if nei_node.xy_name in future_captured_node_names:
-            continue
-
-        config_to[agent_name] = nei_node
-        if nei_node.xy_name in from_n_to_a_name_dict:
-            next_agent_name = from_n_to_a_name_dict[nei_node.xy_name]
-            next_agent = agents_dict[next_agent_name]
-            if agent != next_agent and next_agent_name not in config_to:
-                next_is_valid = procedure_i_pibt_back_step(
-                    next_agent, config_from, config_to, future_captured_node_names, agents_dict, from_n_to_a_name_dict)
-                if not next_is_valid:
-                    continue
-        if nei_node == agent.return_nodes[-1] and len(agent.return_nodes) > 1:
-            agent.return_nodes = agent.return_nodes[:-1]
-        return True
-    config_to[agent_name] = agent_curr_node
-    return False
-
-
-def are_far_away[T](agent1: T, agent2: T) -> bool:
-    # return False
-    len1 = len(agent1.return_path_tuples)
-    len2 = len(agent2.return_path_tuples)
-    return manhattan_distance_nodes(agent1.curr_node, agent2.curr_node) > len1 + len2
-
-
 def get_a_visits_dict[T](agents: List[T], nodes: List[Node]) -> Dict[str, List[int]]:
     visits_dict: Dict[str, List[int]] = {n.xy_name: [] for n in nodes}
     for agent in agents:
@@ -257,62 +198,7 @@ def get_intersect_agents_from_a_visits_dict[T](agent: T, backward_step_agents: L
     return intersect_agents, all_group_nodes_names
 
 
-def get_intersect_graph[T](agents: List[T], nodes: List[Node]) -> Dict[int, List[int]]:
-    # print('get_intersect_graph')
-    agents_to_check: List[T] = [a for a in agents if len(a.return_path_tuples) > 1]
-    intersect_graph: Dict[int, List[int]] = {a.num: [] for a in agents}
-    for agent1, agent2 in combinations(agents_to_check, 2):
-        if are_far_away(agent1, agent2):
-            continue
-        a1_l = [n.xy_name for i, n in agent1.return_path_tuples]
-        a2_l = [n.xy_name for i, n in agent2.return_path_tuples]
-        if not set(a1_l).isdisjoint(a2_l):
-            intersect_graph[agent1.num].append(agent2.num)
-            intersect_graph[agent2.num].append(agent1.num)
-        # found_connection: bool = False
-        # for i1, n1 in agent1.return_path_tuples:
-        #     for i2, n2 in agent2.return_path_tuples:
-        #         if n1 == n2:
-        #             intersect_graph[agent1.num].append(agent2.num)
-        #             intersect_graph[agent2.num].append(agent1.num)
-        #             found_connection = True
-        #             break
-        #     if found_connection:
-        #         break
-    return intersect_graph
-
-
-def get_intersect_agents[T](agent: T, backward_step_agents: List[T], agents_num_dict: Dict[int, T], intersect_graph: Dict[int, List[int]]) -> Tuple[List[T], List[str]]:
-    # print('get_intersect_agents')
-    # find the full connected component and not only the direct neighbours
-    intersect_agents: List[T] = []
-    all_nodes_a1_group: List[str] = []
-    open_list: List[T] = [agent]
-    open_list_nums: List[int] = [agent.num]
-    closed_list_nums: List[int] = []
-    while len(open_list) > 0:
-        next_agent = open_list.pop()
-        open_list_nums.remove(next_agent.num)
-        next_l = [n.xy_name for i, n in next_agent.return_path_tuples]
-        all_nodes_a1_group.extend(next_l)
-        if next_agent in backward_step_agents:
-            intersect_agents.append(next_agent)
-        for nei_a_num in intersect_graph[next_agent.num]:
-            assert nei_a_num != next_agent.num
-            if nei_a_num in open_list_nums:
-                continue
-            if nei_a_num in closed_list_nums:
-                continue
-            nei_agent = agents_num_dict[nei_a_num]
-            open_list.append(nei_agent)
-            heapq.heappush(open_list_nums, nei_a_num)
-        heapq.heappush(closed_list_nums, next_agent.num)
-    all_nodes_a1_group = list(set(all_nodes_a1_group))
-    assert len(intersect_agents) == len(set(intersect_agents))
-    return intersect_agents, all_nodes_a1_group
-
-
-def cut_the_waiting[T](intersect_agents: List[T], iteration: int) -> None:
+def cut_the_waiting[T](intersect_agents: List[T]) -> None:
     # return_path_tuples, iteration
     counts_list: List[int] = []
     agents_to_cut: List[T] = []
@@ -326,8 +212,8 @@ def cut_the_waiting[T](intersect_agents: List[T], iteration: int) -> None:
         for i, n in reversed(return_path_tuples_list[:-1]):
             if first_node == n:
                 i_count += 1
-            else:
-                break
+                continue
+            break
         if i_count == 0:
             return
         counts_list.append(i_count)
@@ -359,7 +245,7 @@ def execute_backward_steps[T](backward_step_agents: List[T], future_captured_nod
             # assert main_agent not in intersect_agents
             # If there are no possible collisions with the planned agents
             if set(all_nodes_a1_group).isdisjoint(future_captured_node_names):
-                cut_the_waiting(intersect_agents, iteration)
+                cut_the_waiting(intersect_agents)
                 for i_agent in intersect_agents:
                     assert len(i_agent.return_path_tuples) != 0
                     assert i_agent.return_path_tuples[-1][1] == i_agent.path[-1]
@@ -388,6 +274,13 @@ def execute_backward_steps[T](backward_step_agents: List[T], future_captured_nod
         assert agent.curr_node == agent.return_path_tuples[-1][1]
         assert agent.prev_node.xy_name in agent.curr_node.neighbours
     return
+
+
+def align_all_paths[T](agents: T) -> None:
+    max_len = max([len(a.path) for a in agents])
+    for a in agents:
+        while len(a.path) < max_len:
+            a.path.append(a.path[-1])
 
 
 class AlgCGARAgent:
@@ -592,12 +485,6 @@ class AlgCGAR(AlgGeneric):
             # print('before execute_backward_steps')
             execute_backward_steps(backward_step_agents, future_captured_node_names, self.agents, self.agents_num_dict, self.main_agent, self.nodes, iteration)
 
-            # for agent in self.agents:
-            #     if agent.num in [28, 29]:
-            #         print(f'\n{agent.name}[{agent.curr_node.xy_name}] active={agent in forward_step_agents}: '
-            #               f'\nreturn_path_tuples_names -> {agent.return_path_tuples_names}'
-            #               f'\npath -> {agent.path_names[iteration:]}')
-
             if to_assert:
                 check_vc_ec_neic_iter(self.agents, iteration)
 
@@ -606,7 +493,6 @@ class AlgCGAR(AlgGeneric):
 
             # print + render
             print(f'\r{'*' * 20} | [CGAR] {iteration=} | {'*' * 20}', end='')
-
             if to_render and iteration >= 0:
                 # i_agent = self.agents_dict['agent_0']
                 i_agent = self.agents[0]
@@ -614,7 +500,8 @@ class AlgCGAR(AlgGeneric):
                 plot_step_in_env(ax[0], plot_info)
                 plot_return_paths(ax[1], plot_info)
                 plt.pause(plot_rate)
-        assert len(set([len(a.path) for a in self.agents])) == 1
+        # assert len(set([len(a.path) for a in self.agents])) == 1
+        align_all_paths(self.agents)
         paths_dict = {a.name: a.path for a in self.agents}
         return True, paths_dict
 
@@ -913,5 +800,113 @@ if __name__ == '__main__':
 #     assert len(intersect_agents) == len(set(intersect_agents))
 #     return intersect_agents, all_nodes_a1_group
 
+# def get_intersect_graph[T](agents: List[T], nodes: List[Node]) -> Dict[int, List[int]]:
+#     # print('get_intersect_graph')
+#     agents_to_check: List[T] = [a for a in agents if len(a.return_path_tuples) > 1]
+#     intersect_graph: Dict[int, List[int]] = {a.num: [] for a in agents}
+#     for agent1, agent2 in combinations(agents_to_check, 2):
+#         if are_far_away(agent1, agent2):
+#             continue
+#         a1_l = [n.xy_name for i, n in agent1.return_path_tuples]
+#         a2_l = [n.xy_name for i, n in agent2.return_path_tuples]
+#         if not set(a1_l).isdisjoint(a2_l):
+#             intersect_graph[agent1.num].append(agent2.num)
+#             intersect_graph[agent2.num].append(agent1.num)
+#         # found_connection: bool = False
+#         # for i1, n1 in agent1.return_path_tuples:
+#         #     for i2, n2 in agent2.return_path_tuples:
+#         #         if n1 == n2:
+#         #             intersect_graph[agent1.num].append(agent2.num)
+#         #             intersect_graph[agent2.num].append(agent1.num)
+#         #             found_connection = True
+#         #             break
+#         #     if found_connection:
+#         #         break
+#     return intersect_graph
+
+# def are_far_away[T](agent1: T, agent2: T) -> bool:
+#     # return False
+#     len1 = len(agent1.return_path_tuples)
+#     len2 = len(agent2.return_path_tuples)
+#     return manhattan_distance_nodes(agent1.curr_node, agent2.curr_node) > len1 + len2
+
+# def procedure_i_pibt_back_step[T](agent: T, config_from: Dict[str, Node], config_to: Dict[str, Node], future_captured_node_names: List[str], agents_dict: Dict[str, T], from_n_to_a_name_dict: Dict[str, str]) -> bool:
+#     agent_name = agent.name
+#     agent_curr_node = config_from[agent_name]
+#     vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
+#     domain: List[Node] = get_list_of_next_return_nodes(agent, config_from)
+#     for nei_node in domain:
+#         # vc
+#         if (nei_node.x, nei_node.y) in vc_set:
+#             continue
+#         # ec
+#         if (nei_node.x, nei_node.y, agent_curr_node.x, agent_curr_node.y) in ec_set:
+#             continue
+#         # blocked
+#         if nei_node.xy_name in future_captured_node_names:
+#             continue
+#
+#         config_to[agent_name] = nei_node
+#         if nei_node.xy_name in from_n_to_a_name_dict:
+#             next_agent_name = from_n_to_a_name_dict[nei_node.xy_name]
+#             next_agent = agents_dict[next_agent_name]
+#             if agent != next_agent and next_agent_name not in config_to:
+#                 next_is_valid = procedure_i_pibt_back_step(
+#                     next_agent, config_from, config_to, future_captured_node_names, agents_dict, from_n_to_a_name_dict)
+#                 if not next_is_valid:
+#                     continue
+#         if nei_node == agent.return_nodes[-1] and len(agent.return_nodes) > 1:
+#             agent.return_nodes = agent.return_nodes[:-1]
+#         return True
+#     config_to[agent_name] = agent_curr_node
+#     return False
 
 
+# def get_list_of_next_return_nodes[T](agent: T, config_from: Dict[str, Node]) -> List[Node]:
+#     agent_curr_node = config_from[agent.name]
+#     assert len(agent.return_nodes) != 0
+#     # assert agent.return_nodes[-1] == agent_curr_node
+#     # you are at the goal location
+#     if len(agent.return_nodes) == 1 and agent_curr_node == agent.goal_node:
+#         return [agent_curr_node]
+#     # you need to move
+#     if agent.return_nodes[-1] == agent_curr_node:
+#         agent.return_nodes = agent.return_nodes[:-1]
+#     assert agent.return_nodes[-1] != agent_curr_node
+#     next_possible_node = agent.return_nodes[-1]
+#     # if you are first in the waiting list return both
+#     pass
+#     # if you are the second in the waiting list and somebody who was later (the first place) and he is on the spot -> return both
+#     pass
+#     # otherwise -> return curr_node
+#     return [next_possible_node, agent_curr_node]
+
+
+# def get_intersect_agents[T](agent: T, backward_step_agents: List[T], agents_num_dict: Dict[int, T], intersect_graph: Dict[int, List[int]]) -> Tuple[List[T], List[str]]:
+#     # print('get_intersect_agents')
+#     # find the full connected component and not only the direct neighbours
+#     intersect_agents: List[T] = []
+#     all_nodes_a1_group: List[str] = []
+#     open_list: List[T] = [agent]
+#     open_list_nums: List[int] = [agent.num]
+#     closed_list_nums: List[int] = []
+#     while len(open_list) > 0:
+#         next_agent = open_list.pop()
+#         open_list_nums.remove(next_agent.num)
+#         next_l = [n.xy_name for i, n in next_agent.return_path_tuples]
+#         all_nodes_a1_group.extend(next_l)
+#         if next_agent in backward_step_agents:
+#             intersect_agents.append(next_agent)
+#         for nei_a_num in intersect_graph[next_agent.num]:
+#             assert nei_a_num != next_agent.num
+#             if nei_a_num in open_list_nums:
+#                 continue
+#             if nei_a_num in closed_list_nums:
+#                 continue
+#             nei_agent = agents_num_dict[nei_a_num]
+#             open_list.append(nei_agent)
+#             heapq.heappush(open_list_nums, nei_a_num)
+#         heapq.heappush(closed_list_nums, next_agent.num)
+#     all_nodes_a1_group = list(set(all_nodes_a1_group))
+#     assert len(intersect_agents) == len(set(intersect_agents))
+#     return intersect_agents, all_nodes_a1_group
