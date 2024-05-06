@@ -314,9 +314,30 @@ def get_intersect_agents[T](agent: T, backward_step_agents: List[T], agents_num_
 
 def cut_the_waiting[T](intersect_agents: List[T], iteration: int) -> None:
     # return_path_tuples, iteration
+    counts_list: List[int] = []
+    agents_to_cut: List[T] = []
     for agent in intersect_agents:
-        for i, n in reversed(agent.return_path_tuples):
-            pass
+        assert len(agent.return_path_tuples) != 0
+        if len(agent.return_path_tuples) == 1:
+            continue
+        _, first_node = agent.return_path_tuples[-1]
+        i_count = 0
+        return_path_tuples_list = list(agent.return_path_tuples)
+        for i, n in reversed(return_path_tuples_list[:-1]):
+            if first_node == n:
+                i_count += 1
+            else:
+                break
+        if i_count == 0:
+            return
+        counts_list.append(i_count)
+        agents_to_cut.append(agent)
+    if len(agents_to_cut) == 0:
+        return
+    min_cut = min(counts_list)
+    for agent in agents_to_cut:
+        return_path_tuples_list = list(agent.return_path_tuples)
+        agent.return_path_tuples = deque([(tpl[0] + min_cut, tpl[1]) for tpl in return_path_tuples_list[:-min_cut]])
 
 
 def execute_backward_steps[T](backward_step_agents: List[T], future_captured_node_names: List[str], agents: List[T], agents_num_dict: Dict[int, T], main_agent: T, nodes: List[Node], iteration: int) -> None:
@@ -338,7 +359,7 @@ def execute_backward_steps[T](backward_step_agents: List[T], future_captured_nod
             # assert main_agent not in intersect_agents
             # If there are no possible collisions with the planned agents
             if set(all_nodes_a1_group).isdisjoint(future_captured_node_names):
-                # cut_the_waiting(intersect_agents, iteration)
+                cut_the_waiting(intersect_agents, iteration)
                 for i_agent in intersect_agents:
                     assert len(i_agent.return_path_tuples) != 0
                     assert i_agent.return_path_tuples[-1][1] == i_agent.path[-1]

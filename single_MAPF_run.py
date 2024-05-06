@@ -36,14 +36,14 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # debug
         to_check_paths = True
         # to_check_paths = False
-        to_assert = True
-        # to_assert = False
+        # to_assert = True
+        to_assert = False
         # rendering
-        to_render = True
-        # to_render = False
+        # to_render = True
+        to_render = False
         to_save_animation = False
-        # to_do_animation = True
-        to_do_animation = False
+        to_do_animation = True
+        # to_do_animation = False
     else:
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
