@@ -1,5 +1,7 @@
 import heapq
 
+import numpy as np
+
 from tools_for_plotting import *
 from tools_for_heuristics import *
 from tools_for_graph_nodes import *
@@ -7,6 +9,13 @@ from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
 from algs.alg_PIBT import run_i_pibt, build_vc_ec_from_configs
+
+
+def get_min_h_nei_node(curr_node: Node, goal_node: Node, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray]) -> Node:
+    nei_nodes = [nodes_dict[nn] for nn in curr_node.neighbours]
+    goal_h_np: np.ndarray = h_dict[goal_node.xy_name]
+    min_h_nei_node = min(nei_nodes, key=lambda n: goal_h_np[n.x, n.y])
+    return min_h_nei_node
 
 
 def build_corridor[T](main_agent: T, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray) -> List[Node]:
@@ -356,7 +365,7 @@ class AlgCGAR(AlgGeneric):
 
     def __init__(self, env: SimEnvMAPF):
         super().__init__()
-        assert env.is_SACGR
+        # assert env.is_SACGR
 
         self.env = env
 
@@ -395,7 +404,7 @@ class AlgCGAR(AlgGeneric):
     def goal_nodes_names(self):
         return [a.goal_node.xy_name for a in self.agents]
 
-    def initialize_problem(self, obs: Dict[str, Any]) -> None:
+    def initialize_problem(self, obs: Dict[str, Any], non_sv_nodes_np: np.ndarray | None = None) -> None:
         # create agents
         self.agents = []
         self.agents_dict = {}
@@ -410,6 +419,12 @@ class AlgCGAR(AlgGeneric):
             self.agents_num_dict[new_agent.num] = new_agent
 
         self.main_agent = self.agents_dict[obs['main_agent_name']]
+        if non_sv_nodes_np is not None:
+            self.non_sv_nodes_np = non_sv_nodes_np
+        else:
+            blocked_nodes = [self.main_agent.goal_node]
+            self.non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np,
+                                                       blocked_nodes=blocked_nodes)
 
     def check_solvability(self) -> Tuple[bool, str]:
         assert self.main_agent.goal_node != self.main_agent.start_node
@@ -421,9 +436,6 @@ class AlgCGAR(AlgGeneric):
             return True, 'good'
         # if there are enough free locations to allow the main agent to pass
         return True, 'good'
-        # TODO: check the function ↓
-        return is_enough_free_locations(self.main_agent.start_node, self.main_agent.goal_node, self.nodes_dict,
-                                        self.h_dict, self.start_nodes, self.non_sv_nodes_np)
 
     def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
@@ -440,15 +452,18 @@ class AlgCGAR(AlgGeneric):
             - execute step
         - Reverse all agents that where moved away -> return
         """
+        if to_assert:
+            set_lens = set([len(a.path) for a in self.agents])
+            assert len(set_lens) == 1
+            assert list(set_lens)[0] == 1
         # to render
         if to_render:
+            plt.close()
             fig, ax = plt.subplots(1, 2, figsize=(14, 7))
             plot_rate = 0.001
             # plot_rate = 4
 
         blocked_nodes = [self.main_agent.goal_node]
-        self.non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, blocked_nodes=blocked_nodes)
-
         iteration = 0
         while not self.stop_condition():
             if len(self.main_agent.path) - 1 < iteration:
@@ -462,7 +477,7 @@ class AlgCGAR(AlgGeneric):
                 main_next_node = get_min_h_nei_node(self.main_agent.curr_node, self.main_agent.goal_node, self.nodes_dict, self.h_dict)
                 if self.non_sv_nodes_np[main_next_node.x, main_next_node.y]:
                     # calc single PIBT step
-                    self.calc_pibt_step(iteration, blocked_nodes)
+                    self.calc_pibt_step(iteration, blocked_nodes, to_assert=to_assert)
                 else:
                     # calc evacuation of agents from the corridor
                     self.calc_ep_steps(iteration, blocked_nodes)
@@ -492,10 +507,10 @@ class AlgCGAR(AlgGeneric):
             iteration += 1
 
             # print + render
-            print(f'\r{'*' * 20} | [CGAR] {iteration=} | {'*' * 20}', end='')
             if to_render and iteration >= 0:
+                print(f'\r{'*' * 20} | [CGAR] {iteration=} | {'*' * 20}', end='')
                 # i_agent = self.agents_dict['agent_0']
-                i_agent = self.agents[0]
+                i_agent = self.main_agent
                 plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, 'non_sv_nodes_np': self.non_sv_nodes_np}
                 plot_step_in_env(ax[0], plot_info)
                 plot_return_paths(ax[1], plot_info)
@@ -505,23 +520,29 @@ class AlgCGAR(AlgGeneric):
         paths_dict = {a.name: a.path for a in self.agents}
         return True, paths_dict
 
-    def calc_pibt_step(self, iteration: int, blocked_nodes: List[Node]):
+    def calc_pibt_step(self, iteration: int, blocked_nodes: List[Node], to_assert: bool = False) -> None:
         # print(f'\n --- inside calc_pibt_step {iteration} --- ')
-        assert len(self.main_agent.path) - 1 < iteration
+        if to_assert:
+            assert len(self.main_agent.path) - 1 < iteration
         # Preps
         config_to = {}
         for agent in self.agents:
             if len(agent.path) - 1 >= iteration:
                 config_to[agent.name] = agent.path[iteration]
+        if to_assert:
+            assert len(set(config_to.values())) == len(set(config_to.keys()))
 
         # Calc PIBT
-        config_to = run_i_pibt(self.main_agent, self.agents, self.nodes_dict, self.h_dict, config_to=config_to, blocked_nodes=blocked_nodes)
+        # print(f'{iteration=}')
+        config_to = run_i_pibt(main_agent=self.main_agent, agents=self.agents, nodes_dict=self.nodes_dict, h_dict=self.h_dict, config_to=config_to, blocked_nodes=blocked_nodes)
 
         # Extend the paths
         for agent in self.agents:
             if agent.name in config_to:
                 next_node = config_to[agent.name]
                 agent.path.append(next_node)
+        if to_assert:
+            assert len(set(config_to.values())) == len(set(config_to.keys()))
 
     def calc_ep_steps(self, iteration: int, blocked_nodes: List[Node]) -> None:
         """

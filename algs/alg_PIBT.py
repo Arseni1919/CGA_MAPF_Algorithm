@@ -62,6 +62,8 @@ def procedure_i_pibt[T](
             continue
 
         config_to[agent_name] = nei_node
+        # if agent.num in [7, 87]:
+        #     print(f'\n{agent_name} True -> {config_to[agent_name].xy_name}')
         if nei_node.xy_name in node_name_to_agent_list:
             next_agent = node_name_to_agent_dict[nei_node.xy_name]
             if agent != next_agent and next_agent.name not in config_to:
@@ -70,9 +72,12 @@ def procedure_i_pibt[T](
                     node_name_to_agent_dict, node_name_to_agent_list, blocked_nodes
                 )
                 if not next_is_valid:
+                    vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
                     continue
         return True
     config_to[agent_name] = agent_curr_node
+    # if agent.num in [7, 87]:
+    #     print(f'\n{agent_name} False -> {config_to[agent_name].xy_name}')
     return False
 
 
@@ -94,12 +99,12 @@ def run_i_pibt[T](
         config_to: Dict[str, Node] = {}
     if goals is None:
         goals: Dict[str, Node] = {agent.name: agent.goal_node for agent in agents}
-    if blocked_nodes is None:
-        blocked_nodes = []
     if node_name_to_agent_dict is None:
         node_name_to_agent_dict: Dict[str, T] = {a.curr_node.xy_name: a for a in agents}
         node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
         heapq.heapify(node_name_to_agent_list)
+    if blocked_nodes is None:
+        blocked_nodes = []
     _ = procedure_i_pibt(main_agent, nodes_dict, h_dict, config_from, config_to, goals,
                          node_name_to_agent_dict, node_name_to_agent_list, blocked_nodes)
     return config_to
