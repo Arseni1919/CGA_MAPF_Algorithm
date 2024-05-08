@@ -75,7 +75,7 @@ def find_ev_path[T](curr_node: Node, corridor: List[Node], nodes_dict: Dict[str,
             son_to_father_dict[nei_name] = next_node
         heapq.heappush(closed_names_list_heap, next_node.xy_name)
 
-    raise RuntimeError('no way')
+    raise RuntimeError('no way: cannot find an EV path')
 
 
 def get_last_visit_dict[T](given_list: List[Node], given_agents: List[T], iteration: int) -> Dict[str, int]:

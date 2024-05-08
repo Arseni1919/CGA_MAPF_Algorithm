@@ -41,10 +41,10 @@ def is_enough_free_locations(curr_node: Node, goal_node: Node, nodes_dict: Dict[
     while len(open_list) > 0:
         next_node = open_list.pop()
         open_list_names.remove(next_node.xy_name)
-        in_sv_and_in_full_path: bool = next_node in full_path and not non_sv_nodes_np[next_node.x, next_node.y]
-        if not in_sv_and_in_full_path and next_node not in other_curr_nodes:
+        is_sv_and_in_full_path: bool = next_node in full_path and not non_sv_nodes_np[next_node.x, next_node.y]
+        if not is_sv_and_in_full_path and next_node not in other_curr_nodes:
             free_count += 1
-            if free_count >= max_corridor + 2:
+            if free_count >= max_corridor + 5:
                 return True, 'good'
         for nei_name in next_node.neighbours:
             if nei_name == next_node.xy_name:
@@ -238,14 +238,20 @@ class AlgCGARMAPF(AlgGeneric):
                     paths_dict = self.execute_cgar(i_agent, new_goal_node, max_time, to_assert, to_render)
                     self.compress(paths_dict, to_assert=to_assert)
 
-            is_good, message = is_enough_free_locations(next_agent.curr_node, next_agent.goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_np)
+            # if the current location is not good
+            blocked_nodes: List[Node] = []
+            alt_start_node: Node = next_agent.curr_node
+            is_good, message = is_enough_free_locations(alt_start_node, next_agent.goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_np)
             if not is_good:
-                print(f'\n{message}')
-                new_goal_node = self.get_nearest_goal_node(i_agent=next_agent)
+                while not is_good:
+                    print(f'\n{message} -- changing alt_start_node')
+                    blocked_nodes.append(alt_start_node)
+                    alt_start_node = self.get_nearest_goal_node(i_agent=next_agent, blocked_nodes=blocked_nodes)
+                    is_good, message = is_enough_free_locations(alt_start_node, next_agent.goal_node, self.nodes_dict,
+                                                                self.h_dict, self.curr_nodes, self.non_sv_nodes_np)
                 # Execute CGAR(a) + compress
-                paths_dict = self.execute_cgar(next_agent, new_goal_node, max_time, to_assert, to_render)
+                paths_dict = self.execute_cgar(next_agent, alt_start_node, max_time, to_assert, to_render)
                 self.compress(paths_dict, to_assert=to_assert)
-
 
             # Execute CGAR(a) + compress
             print(f'\nregular execute')
@@ -272,6 +278,7 @@ class AlgCGARMAPF(AlgGeneric):
         solved = self.stop_condition()
         if to_assert:
             assert solved
+            check_paths(self.agents)
         return solved, paths_dict
 
     def stop_condition(self):
@@ -401,17 +408,21 @@ class AlgCGARMAPF(AlgGeneric):
         if to_assert:
             assert len(set([len(a.path) for a in self.agents])) == 1
 
-    def get_nearest_goal_node(self, i_agent: AlgCGARMAPFAgent) -> Node:
+    def get_nearest_goal_node(self, i_agent: AlgCGARMAPFAgent, blocked_nodes: List[Node] | None = None) -> Node:
         curr_nodes_names = self.curr_nodes_names
         open_list: Deque[Node] = deque([i_agent.curr_node])
         open_names_list_heap = [f'{i_agent.curr_node.xy_name}']
         closed_names_list_heap = []
+        if blocked_nodes is None:
+            blocked_nodes = []
 
         while len(open_list) > 0:
             next_n = open_list.pop()
             open_names_list_heap.remove(next_n.xy_name)
-            if self.non_sv_nodes_np[next_n.x, next_n.y] and next_n.xy_name not in curr_nodes_names:
-                return next_n
+            if self.non_sv_nodes_np[next_n.x, next_n.y] and next_n.xy_name not in curr_nodes_names and next_n not in blocked_nodes:
+                is_good, message = is_enough_free_locations(i_agent.curr_node, next_n, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_np)
+                if is_good:
+                    return next_n
             for nei_name in next_n.neighbours:
                 if nei_name == next_n.xy_name:
                     continue
