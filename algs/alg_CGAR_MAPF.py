@@ -346,7 +346,6 @@ class AlgCGARMAPF(AlgGeneric):
         max_new_len = len(paths_dict[self.agents[0].name])
         max_old_len = len(self.agents[0].path)
         if max_old_len <= max_new_len:
-            print('here')
             for a in self.agents:
                 a.path.extend(paths_dict[a.name])
                 a.curr_node = a.path[-1]
