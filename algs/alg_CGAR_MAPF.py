@@ -278,6 +278,7 @@ class AlgCGARMAPF(AlgGeneric):
         solved = self.stop_condition()
         if to_assert:
             assert solved
+            print('\nStars to check paths...')
             check_paths(self.agents)
         return solved, paths_dict
 

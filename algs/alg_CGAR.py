@@ -167,7 +167,7 @@ def push_main_agent[T](main_agent: T, corridor: List[Node], moved_agents: List[T
 def get_a_visits_dict[T](agents: List[T], nodes: List[Node]) -> Dict[str, List[int]]:
     visits_dict: Dict[str, List[int]] = {n.xy_name: [] for n in nodes}
     for agent in agents:
-        for i, n in agent.return_path_tuples:
+        for n in agent.return_path_tuples:
             visits_dict[n.xy_name].append(agent.num)
     return visits_dict
 
@@ -184,11 +184,11 @@ def get_intersect_agents_from_a_visits_dict[T](agent: T, backward_step_agents: L
         next_agent = agents_num_dict[next_agent_num]
         rp_names: List[str] = []
         nei_agents: List[int] = []
-        for i, n in next_agent.return_path_tuples:
+        for n in next_agent.return_path_tuples:
             n_name = n.xy_name
             rp_names.append(n_name)
             nei_agents.extend(visits_dict[n_name])
-        # rp_names: List[str] = [n.xy_name for i, n in next_agent.return_path_tuples]
+        # rp_names: List[str] = [n.xy_name for n in next_agent.return_path_tuples]
         if next_agent_num in backward_step_agents_nums:
             intersect_agents.append(next_agent)
         all_group_nodes_names.extend(rp_names)
@@ -215,10 +215,10 @@ def cut_the_waiting[T](intersect_agents: List[T]) -> None:
         assert len(agent.return_path_tuples) != 0
         if len(agent.return_path_tuples) == 1:
             continue
-        _, first_node = agent.return_path_tuples[-1]
+        first_node = agent.return_path_tuples[-1]
         i_count = 0
         return_path_tuples_list = list(agent.return_path_tuples)
-        for i, n in reversed(return_path_tuples_list[:-1]):
+        for n in reversed(return_path_tuples_list[:-1]):
             if first_node == n:
                 i_count += 1
                 continue
@@ -232,7 +232,7 @@ def cut_the_waiting[T](intersect_agents: List[T]) -> None:
     min_cut = min(counts_list)
     for agent in agents_to_cut:
         return_path_tuples_list = list(agent.return_path_tuples)
-        agent.return_path_tuples = deque([(tpl[0] + min_cut, tpl[1]) for tpl in return_path_tuples_list[:-min_cut]])
+        agent.return_path_tuples = deque(return_path_tuples_list[:-min_cut])
 
 
 def execute_backward_steps[T](backward_step_agents: List[T], future_captured_node_names: List[str], agents: List[T], agents_num_dict: Dict[int, T], main_agent: T, nodes: List[Node], iteration: int) -> None:
@@ -257,30 +257,28 @@ def execute_backward_steps[T](backward_step_agents: List[T], future_captured_nod
                 cut_the_waiting(intersect_agents)
                 for i_agent in intersect_agents:
                     assert len(i_agent.return_path_tuples) != 0
-                    assert i_agent.return_path_tuples[-1][1] == i_agent.path[-1]
+                    assert i_agent.return_path_tuples[-1] == i_agent.path[-1]
                     if len(i_agent.return_path_tuples) == 1:
-                        i_1, next_p_node = i_agent.return_path_tuples[-1]
+                        next_p_node = i_agent.return_path_tuples[-1]
                         assert next_p_node == i_agent.goal_node
                         i_agent.path.append(next_p_node)
-                        i_agent.return_path_tuples = deque([(iteration, next_p_node)])
+                        i_agent.return_path_tuples = deque([next_p_node])
                         continue
-                    i_2, curr_node = i_agent.return_path_tuples.pop()
-                    i_3, next_p_node = i_agent.return_path_tuples[-1]
+                    curr_node = i_agent.return_path_tuples.pop()
+                    next_p_node = i_agent.return_path_tuples[-1]
                     assert i_agent.path[-1].xy_name in next_p_node.neighbours
                     i_agent.path.append(next_p_node)
-                    i_agent.return_path_tuples = deque([(tpl[0] + 2, tpl[1]) for tpl in i_agent.return_path_tuples])
             else:
                 for i_agent in intersect_agents:
                     i_agent.path.append(i_agent.path[-1])  # !!!
-                    i_agent.return_path_tuples.append((iteration, i_agent.path[-1]))
-                    # i_agent.return_path_tuples = deque([(tpl[0] + 1, tpl[1]) for tpl in i_agent.return_path_tuples])
+                    i_agent.return_path_tuples.append(i_agent.path[-1])
 
     # update paths + execute the step
     for agent in backward_step_agents:
         assert len(agent.path) == iteration + 1
         agent.prev_node = agent.curr_node
         agent.curr_node = agent.path[iteration]
-        assert agent.curr_node == agent.return_path_tuples[-1][1]
+        assert agent.curr_node == agent.return_path_tuples[-1]
         assert agent.prev_node.xy_name in agent.curr_node.neighbours
     return
 
@@ -302,9 +300,9 @@ class AlgCGARAgent:
         self.path: List[Node] = [start_node]
         self.first_arrived: bool = self.curr_node == self.goal_node
         if self.first_arrived:
-            self.return_path_tuples: Deque[Tuple[int, Node]] = deque([(0, self.goal_node)])
+            self.return_path_tuples: Deque[Node] = deque([self.goal_node])
         else:
-            self.return_path_tuples: Deque[Tuple[int, Node]] = deque()
+            self.return_path_tuples: Deque[Node] = deque()
         self.arrived: bool = self.first_arrived
 
     @property
@@ -317,7 +315,7 @@ class AlgCGARAgent:
 
     @property
     def return_path_tuples_names(self):
-        return [(tpl[0], tpl[1].xy_name) for tpl in self.return_path_tuples]
+        return [tpl.xy_name for tpl in self.return_path_tuples]
 
     @property
     def last_path_node_name(self):
@@ -353,11 +351,11 @@ class AlgCGARAgent:
 
         # for the back-steps
         if self.first_arrived:
-            # self.return_path_tuples.append((iteration, self.curr_node))
+            # self.return_path_tuples.append(self.curr_node)
             if len(self.return_path_tuples) == 1 and self.curr_node == self.goal_node:
-                self.return_path_tuples = deque([(iteration, self.curr_node)])
+                self.return_path_tuples = deque([self.curr_node])
                 return
-            self.return_path_tuples.append((iteration, self.curr_node))
+            self.return_path_tuples.append(self.curr_node)
 
 
 class AlgCGAR(AlgGeneric):
