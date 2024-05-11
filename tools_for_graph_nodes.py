@@ -227,6 +227,7 @@ def copy_nodes(nodes: List[Node]) -> Tuple[List[Node], Dict[str, Node]]:
 def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List[Node] | None = None) -> bool:
     if blocked_nodes is None:
         blocked_nodes = []
+    blocked_nodes_names = [n.xy_name for n in blocked_nodes]
     assert len(node.neighbours) != 0
     assert len(node.neighbours) != 1
     if len(node.neighbours) == 2:
@@ -235,17 +236,18 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List
     prev_len = len(node.neighbours)
     init_nei_names = node.neighbours[:]
     init_nei_names.remove(node.xy_name)
+    for n in blocked_nodes:
+        if n.xy_name in init_nei_names:
+            init_nei_names.remove(n.xy_name)
+    if len(init_nei_names) in [0, 1]:
+        return True
 
     assert len(init_nei_names) < prev_len
     assert len(node.neighbours) == prev_len
     assert len(init_nei_names) != 0
     assert len(init_nei_names) > 1
 
-    first_nei_name = init_nei_names[0]
-    init_nei_names.remove(first_nei_name)
-    for n in blocked_nodes:
-        if n.xy_name in init_nei_names:
-            init_nei_names.remove(n.xy_name)
+    first_nei_name = init_nei_names.pop(0)
     first_nei = nodes_dict[first_nei_name]
 
     open_list: Deque[Node] = deque([first_nei])
@@ -281,6 +283,14 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List
         heapq.heappush(closed_names_list_heap, next_node.xy_name)
 
     return False
+
+
+def get_blocked_non_sv_nodes(img_dir: str, folder_dir: str = 'logs_for_freedom_maps'):
+    possible_dir = f'{folder_dir}/blocked_{img_dir[:-4]}.npy'
+    assert os.path.exists(possible_dir)
+    with open(possible_dir, 'rb') as f:
+        non_sv_nodes_with_blocked_np = np.load(f)
+        return non_sv_nodes_with_blocked_np
 
 
 def get_non_sv_nodes_np(nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray,

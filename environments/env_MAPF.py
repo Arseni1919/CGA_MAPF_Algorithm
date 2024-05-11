@@ -35,6 +35,7 @@ class SimEnvMAPF:
         self.h_func = h_func_creator(self.h_dict)
         self.non_sv_nodes_np: np.ndarray = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np,
                                                                img_dir=self.img_dir, folder_dir='../logs_for_freedom_maps')
+        self.non_sv_nodes_with_blocked_np = get_blocked_non_sv_nodes(self.img_dir, '../logs_for_freedom_maps')
         self.agents: List[SimAgentMAPF] = []
         self.agents_dict: Dict[str, SimAgentMAPF] = {}
         self.start_nodes: List[Node] = []

@@ -7,12 +7,12 @@ from algs.alg_generic_class import AlgGeneric
 from algs.alg_CGAR import AlgCGAR, get_min_h_nei_node
 
 
-def parallel_get_non_sv_nodes_np[T](agent: T, nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray, non_sv_nodes_np_dict: Dict[str, np.ndarray]) -> None:
-    print(f'\n{agent.name} started...', end='')
-    blocked_nodes = [agent.goal_node]
-    non_sv_nodes_np = get_non_sv_nodes_np(nodes, nodes_dict, img_np, blocked_nodes=blocked_nodes)
-    non_sv_nodes_np_dict[agent.name] = non_sv_nodes_np
-    print(f'\n{agent.name} is finished.', end='')
+# def parallel_get_non_sv_nodes_np[T](agent: T, nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray, non_sv_nodes_np_dict: Dict[str, np.ndarray]) -> None:
+#     print(f'\n{agent.name} started...', end='')
+#     blocked_nodes = [agent.goal_node]
+#     non_sv_nodes_np = get_non_sv_nodes_np(nodes, nodes_dict, img_np, blocked_nodes=blocked_nodes)
+#     non_sv_nodes_np_dict[agent.name] = non_sv_nodes_np
+#     print(f'\n{agent.name} is finished.', end='')
 
 
 def is_enough_free_locations(curr_node: Node, goal_node: Node, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], other_curr_nodes: List[Node], non_sv_nodes_np: np.ndarray) -> Tuple[bool, str]:
@@ -42,7 +42,8 @@ def is_enough_free_locations(curr_node: Node, goal_node: Node, nodes_dict: Dict[
         next_node = open_list.pop()
         open_list_names.remove(next_node.xy_name)
         is_sv_and_in_full_path: bool = next_node in full_path and not non_sv_nodes_np[next_node.x, next_node.y]
-        if not is_sv_and_in_full_path and next_node not in other_curr_nodes:
+        is_in_corridor = next_node in full_path
+        if not is_in_corridor and not is_sv_and_in_full_path and next_node not in other_curr_nodes:
             free_count += 1
             if free_count >= max_corridor + 5:
                 return True, 'good'
@@ -129,6 +130,7 @@ class AlgCGARMAPF(AlgGeneric):
         self.nodes, self.nodes_dict = copy_nodes(self.env.nodes)
         self.img_np: np.ndarray = self.env.img_np
         self.non_sv_nodes_np: np.ndarray = self.env.non_sv_nodes_np
+        self.non_sv_nodes_with_blocked_np = self.env.non_sv_nodes_with_blocked_np
         self.map_dim = self.env.map_dim
         self.h_func = self.env.h_func
         # the structure of h_dict: h_dict[xy_name] -> np.ndarray
@@ -139,7 +141,7 @@ class AlgCGARMAPF(AlgGeneric):
         self.agents_dict: Dict[str, AlgCGARMAPFAgent] = {}
         self.agents_num_dict: Dict[int, AlgCGARMAPFAgent] = {}
         self.agents_open_list: deque[AlgCGARMAPFAgent] = deque()
-        self.non_sv_nodes_np_dict: Dict[str, np.ndarray] = {}
+        # self.non_sv_nodes_np_dict: Dict[str, np.ndarray] = {}
 
         # logs
         self.logs: dict | None = None
@@ -185,20 +187,20 @@ class AlgCGARMAPF(AlgGeneric):
             self.agents.append(new_agent)
             self.agents_dict[new_agent.name] = new_agent
             self.agents_num_dict[new_agent.num] = new_agent
-        self.create_non_sv_nodes_np_dict()
+        # self.create_non_sv_nodes_np_dict()
 
-    def create_non_sv_nodes_np_dict(self):
-        print('\nStart of the create_non_sv_nodes_np_dict function..')
-        self.non_sv_nodes_np_dict: Dict[str, np.ndarray] = {}
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.agents)) as executor:
-            for agent in self.agents:
-                executor.submit(parallel_get_non_sv_nodes_np, agent, self.nodes, self.nodes_dict, self.img_np, self.non_sv_nodes_np_dict)
-        # for agent in self.agents:
-        #     blocked_nodes = [agent.goal_node]
-        #     non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, blocked_nodes=blocked_nodes)
-        #     self.non_sv_nodes_np_dict[agent.name] = non_sv_nodes_np
-        #     print(f'\n{agent.name} is finished.', end='')
-        print('\nCreate_non_sv_nodes_np_dict is finished.')
+    # def create_non_sv_nodes_np_dict(self):
+    #     print('\nStart of the create_non_sv_nodes_np_dict function..')
+    #     self.non_sv_nodes_np_dict: Dict[str, np.ndarray] = {}
+    #     with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.agents)) as executor:
+    #         for agent in self.agents:
+    #             executor.submit(parallel_get_non_sv_nodes_np, agent, self.nodes, self.nodes_dict, self.img_np, self.non_sv_nodes_np_dict)
+    #     # for agent in self.agents:
+    #     #     blocked_nodes = [agent.goal_node]
+    #     #     non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, blocked_nodes=blocked_nodes)
+    #     #     self.non_sv_nodes_np_dict[agent.name] = non_sv_nodes_np
+    #     #     print(f'\n{agent.name} is finished.', end='')
+    #     print('\nCreate_non_sv_nodes_np_dict is finished.')
 
     def check_solvability(self) -> Tuple[bool, str]:
         return True, 'good'
@@ -335,7 +337,8 @@ class AlgCGARMAPF(AlgGeneric):
         # Execute CGAR(a)
         obs = self.build_obs(main_agent=main_agent, goal_node=goal_node)
         i_alg_cgar = AlgCGAR(env=self.env)
-        i_alg_cgar.initialize_problem(obs=obs, non_sv_nodes_np=self.non_sv_nodes_np_dict[main_agent.name])
+        main_g_node = main_agent.goal_node
+        i_alg_cgar.initialize_problem(obs=obs, non_sv_nodes_np=self.non_sv_nodes_with_blocked_np[main_g_node.x, main_g_node.y])
         solved, paths_dict = i_alg_cgar.solve(max_time=max_time, to_assert=to_assert, to_render=to_render)
         return paths_dict
 

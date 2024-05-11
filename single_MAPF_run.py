@@ -10,8 +10,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
     # General params
     # ------------------------------------------------------------------------------------------------------------ #
     # set_seed(random_seed_bool=False, seed=381)
-    # set_seed(random_seed_bool=False, seed=3679)  # 70
-    set_seed(random_seed_bool=True)
+    set_seed(random_seed_bool=False, seed=1837)  # 200  room-32-32-4.map
+    # set_seed(random_seed_bool=True)
 
     if is_SACGR:
         # ------------------------------------------------------------------------------------------------------------ #
@@ -48,20 +48,20 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 200
+        N = 500
         i_problems = 1
+        # img_dir = '10_10_my_rand.map'
         # img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
         # img_dir = '15-15-six-rooms.map'
         # img_dir = '15-15-eight-rooms.map'
-        # img_dir = '10_10_my_rand.map'
 
         # img_dir = 'empty-32-32.map'
-        # img_dir = 'random-32-32-10.map'
+        img_dir = 'random-32-32-10.map'
         # img_dir = 'random-32-32-20.map'
         # img_dir = 'maze-32-32-4.map'
         # img_dir = 'maze-32-32-2.map'
-        img_dir = 'room-32-32-4.map'
+        # img_dir = 'room-32-32-4.map'
         # limits
         max_time = 1e7  # seconds
         # debug
