@@ -62,6 +62,7 @@ def procedure_i_pibt[T](
             continue
 
         config_to[agent_name] = nei_node
+        # blocked_nodes.append(config_from[agent_name])
         # if agent.num in [7, 87]:
         #     print(f'\n{agent_name} True -> {config_to[agent_name].xy_name}')
         if nei_node.xy_name in node_name_to_agent_list:

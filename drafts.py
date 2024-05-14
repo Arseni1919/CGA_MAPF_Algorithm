@@ -15,10 +15,15 @@
 # for i in range(n):
 #     print(f'\r{int(i/n * 100)} % : {i:_}', end='')
 
-from itertools import pairwise
+# from itertools import pairwise
+#
+# lst = [1,2,3,4,5]
+# # lst = [1,2]
+# print(lst[-2:])
+# print("Original list - ", lst)
+# print("Successive overlapping pairs - ", list(pairwise(lst)))
 
-lst = [1,2,3,4,5]
-# lst = [1,2]
-print(lst[-2:])
-print("Original list - ", lst)
-print("Successive overlapping pairs - ", list(pairwise(lst)))
+l = [('a', 1, [1, 3, 4])]
+print(l)
+l[-1][2].append(12)
+print(l)

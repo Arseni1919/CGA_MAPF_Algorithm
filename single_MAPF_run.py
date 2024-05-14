@@ -10,14 +10,14 @@ def single_mapf_run(AlgClass, is_SACGR=True):
     # General params
     # ------------------------------------------------------------------------------------------------------------ #
     # set_seed(random_seed_bool=False, seed=381)
-    set_seed(random_seed_bool=False, seed=1837)  # 200  room-32-32-4.map
+    set_seed(random_seed_bool=False, seed=5781)  # 600  random-32-32-20.map
     # set_seed(random_seed_bool=True)
 
     if is_SACGR:
         # ------------------------------------------------------------------------------------------------------------ #
         # SACGR
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 400
+        N = 700
         i_problems = 10
         # img_dir = '15-15-two-rooms.map'
         # img_dir = '15-15-four-rooms.map'
@@ -39,8 +39,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # to_assert = True
         to_assert = False
         # rendering
-        to_render = True
-        # to_render = False
+        # to_render = True
+        to_render = False
         to_save_animation = False
         # to_do_animation = True
         to_do_animation = False
@@ -81,6 +81,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
 
     for i_problem in range(i_problems):
+        # if i_problem >= 4:
+        #     to_render = True
         # problem creation
         env = SimEnvMAPF(img_dir=img_dir, is_SACGR=is_SACGR)
         start_nodes = random.sample(env.nodes, N)
@@ -107,7 +109,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
                 'img_dir': img_dir, 'img_np': env.img_np, 'paths_dict': paths_dict, 'i_agent': alg.agents[0],
                 'max_time': len(max(list(paths_dict.values()))), 'alg_name': alg.name
             }, to_save=to_save_animation)
-        print(f'The run is finished\n{solved=}')
+        print(f'The run {i_problem + 1} is finished\n{solved=}')
 
 # if to_render:
 #     fig, ax = plt.subplots(1, 2, figsize=(14, 7))

@@ -293,8 +293,9 @@ def plot_return_paths(ax, info):
         if 'i_agent' in info and info['i_agent'] == agent:
             continue
         rn_x_list, rn_y_list = [], []
-        return_path_tuples = agent.return_path_tuples
-        for i, n in return_path_tuples:
+        # return_path_nodes = agent.return_path_nodes
+        return_path = agent.return_road_nodes
+        for n in return_path:
             rn_x_list.append(n.x)
             rn_y_list.append(n.y)
         color = get_color(agent.num)
