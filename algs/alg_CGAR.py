@@ -8,7 +8,7 @@ from tools_for_graph_nodes import *
 from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
-from algs.alg_PIBT import run_i_pibt, build_vc_ec_from_configs
+from algs.alg_PIBT import run_i_pibt
 
 
 def update_waiting_tables[T](agents: List[T], fs_to_a_dict: Dict[str, T], from_n_to_a_dict: Dict[str, T], iteration: int, to_assert: bool) -> None:
@@ -26,8 +26,6 @@ def update_waiting_tables[T](agents: List[T], fs_to_a_dict: Dict[str, T], from_n
             if n_name in fs_to_a_dict:
                 agent_on_road = fs_to_a_dict[n_name]
                 agent_on_road_name = agent_on_road.name
-                # waiting_list_names = affected_agent.get_wl_names(n)
-                # last_name = waiting_list_names[-1] if len(waiting_list_names) > 0 else ''
                 if agent_on_road.first_arrived and agent_on_road != affected_agent:
                     or_n_name, or_i, or_a_list, or_n = agent_on_road.return_road[-1]
                     assert or_n_name == n_name
@@ -82,7 +80,7 @@ def execute_backward_road[T](from_n_to_a_dict: Dict[str, T], backward_step_agent
             update_data(next_agent, next_agent.curr_node)
             continue
         # another agent in front of the agent needs to plan first
-        # TODO: check for circles
+        # TODO: check for circles - there will be never circles here = with the circles the algorithm will not work
         if next_possible_node.xy_name in from_n_to_a_dict:
             distur_agent = from_n_to_a_dict[next_possible_node.xy_name]
             if distur_agent.name not in to_config:
