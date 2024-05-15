@@ -119,8 +119,10 @@ def get_min_h_nei_node(curr_node: Node, goal_node: Node, nodes_dict: Dict[str, N
     return min_h_nei_node
 
 
-def build_corridor[T](main_agent: T, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray) -> List[Node]:
+def build_corridor[T](main_agent: T, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray, given_goal_node: Node | None = None) -> List[Node]:
     main_goal_node = main_agent.goal_node
+    if given_goal_node:
+        main_goal_node = given_goal_node
     i_curr_node = main_agent.curr_node
     main_next_node = get_min_h_nei_node(i_curr_node, main_goal_node, nodes_dict, h_dict)
     assert non_sv_nodes_np[main_next_node.x, main_next_node.y] == 0
@@ -141,7 +143,7 @@ def unfold_path(next_node: Node, son_to_father_dict: Dict[str, Node | None]) -> 
     return path
 
 
-def find_ev_path[T](curr_node: Node, corridor: List[Node], nodes_dict: Dict[str, Node], blocked_nodes: List[Node], captured_free_nodes: List[Node], curr_n_name_to_a_dict: Dict[str, T], curr_n_name_to_a_list: List[str]) -> Tuple[List[Node], Node]:
+def find_ev_path[T](curr_node: Node, corridor: List[Node], nodes_dict: Dict[str, Node], blocked_nodes: List[Node], captured_free_nodes: List[Node], curr_n_name_to_a_dict: Dict[str, T], curr_n_name_to_a_list: List[str]) -> Tuple[List[Node], Node] | Tuple[None, None]:
     open_list: Deque[Node] = deque([curr_node])
     open_names_list_heap = [curr_node.xy_name]
     heapq.heapify(open_names_list_heap)
@@ -175,8 +177,8 @@ def find_ev_path[T](curr_node: Node, corridor: List[Node], nodes_dict: Dict[str,
             heapq.heappush(open_names_list_heap, nei_name)
             son_to_father_dict[nei_name] = next_node
         heapq.heappush(closed_names_list_heap, next_node.xy_name)
-
-    raise RuntimeError('no way: cannot find an EV path')
+    return None, None
+    # raise RuntimeError('no way: cannot find an EV path')
 
 
 def get_last_visit_dict[T](given_list: List[Node], given_agents: List[T], iteration: int) -> Dict[str, int]:
@@ -265,130 +267,12 @@ def push_main_agent[T](main_agent: T, corridor: List[Node], moved_agents: List[T
         prev_n = c_n
 
 
-def get_a_visits_dict[T](agents: List[T], nodes: List[Node]) -> Dict[str, List[int]]:
-    visits_dict: Dict[str, List[int]] = {n.xy_name: [] for n in nodes}
-    for agent in agents:
-        for n in agent.return_path_tuples:
-            visits_dict[n.xy_name].append(agent.num)
-    return visits_dict
-
-
-def get_intersect_agents_from_a_visits_dict[T](agent: T, backward_step_agents: List[T], agents_num_dict: Dict[int, T], visits_dict: Dict[str, List[int]]) -> Tuple[List[T], List[str]]:
-    intersect_agents: List[T] = []  # only from backward_step_agents
-    all_group_nodes_names: List[str] = []  # not only from backward_step_agents
-    backward_step_agents_nums: List[int] = [a.num for a in backward_step_agents]
-    # open_list: Deque[int] = deque([agent.num])
-    open_list: List[int] = [agent.num]
-    closed_list: List[int] = []
-    while len(open_list) > 0:
-        next_agent_num = open_list.pop()
-        next_agent = agents_num_dict[next_agent_num]
-        rp_names: List[str] = []
-        nei_agents: List[int] = []
-        for n in next_agent.return_path_tuples:
-            n_name = n.xy_name
-            rp_names.append(n_name)
-            nei_agents.extend(visits_dict[n_name])
-        # rp_names: List[str] = [n.xy_name for n in next_agent.return_path_nodes]
-        if next_agent_num in backward_step_agents_nums:
-            intersect_agents.append(next_agent)
-        all_group_nodes_names.extend(rp_names)
-
-        for nei in set(nei_agents):
-            if nei == next_agent_num:
-                continue
-            if nei in open_list:
-                continue
-            if nei in closed_list:
-                continue
-            # open_list.append(nei)
-            heapq.heappush(open_list, nei)
-        heapq.heappush(closed_list, next_agent_num)
-    all_group_nodes_names = list(set(all_group_nodes_names))
-    return intersect_agents, all_group_nodes_names
-
-
-def cut_the_waiting[T](intersect_agents: List[T]) -> None:
-    # return_path_nodes, iteration
-    counts_list: List[int] = []
-    agents_to_cut: List[T] = []
-    for agent in intersect_agents:
-        assert len(agent.return_path_tuples) != 0
-        if len(agent.return_path_tuples) == 1:
-            continue
-        first_node = agent.return_path_tuples[-1]
-        i_count = 0
-        return_path_tuples_list = list(agent.return_path_tuples)
-        for n in reversed(return_path_tuples_list[:-1]):
-            if first_node == n:
-                i_count += 1
-                continue
-            break
-        if i_count == 0:
-            return
-        counts_list.append(i_count)
-        agents_to_cut.append(agent)
-    if len(agents_to_cut) == 0:
-        return
-    min_cut = min(counts_list)
-    for agent in agents_to_cut:
-        return_path_tuples_list = list(agent.return_path_tuples)
-        agent.return_path_tuples = deque(return_path_tuples_list[:-min_cut])
-
-
-def execute_backward_steps[T](backward_step_agents: List[T], future_captured_node_names: List[str], agents: List[T], agents_num_dict: Dict[int, T], main_agent: T, nodes: List[Node], iteration: int) -> None:
-    for agent in backward_step_agents:
-        assert len(agent.path) == iteration
-        assert len(agent.return_path_tuples) != 0
-    # for agent in backward_step_agents:
-    #     agent.path.append(agent.path[-1])
-    # return
-    # intersect_graph: Dict[int, List[int]] = get_intersect_graph(agents, nodes)
-    a_visits_dict: Dict[str, List[int]] = get_a_visits_dict(agents, nodes)
-    for agent_1 in backward_step_agents:
-        # if agent_1.num in [28, 29]:
-        #     print(f'\nexecute_backward_steps {agent_1.name}: {agent_1.return_path_tuples_names}')
-        # If you need to plan
-        if len(agent_1.path) == iteration:
-            # intersect_agents, all_nodes_a1_group = get_intersect_agents(agent_1, backward_step_agents, agents_num_dict, intersect_graph)
-            intersect_agents, all_nodes_a1_group = get_intersect_agents_from_a_visits_dict(agent_1, backward_step_agents, agents_num_dict, a_visits_dict)
-            # assert main_agent not in intersect_agents
-            # If there are no possible collisions with the planned agents
-            if set(all_nodes_a1_group).isdisjoint(future_captured_node_names):
-                cut_the_waiting(intersect_agents)
-                for i_agent in intersect_agents:
-                    assert len(i_agent.return_path_tuples) != 0
-                    assert i_agent.return_path_tuples[-1] == i_agent.path[-1]
-                    if len(i_agent.return_path_tuples) == 1:
-                        next_p_node = i_agent.return_path_tuples[-1]
-                        assert next_p_node == i_agent.goal_node
-                        i_agent.path.append(next_p_node)
-                        i_agent.return_path_tuples = deque([next_p_node])
-                        continue
-                    curr_node = i_agent.return_path_tuples.pop()
-                    next_p_node = i_agent.return_path_tuples[-1]
-                    assert i_agent.path[-1].xy_name in next_p_node.neighbours
-                    i_agent.path.append(next_p_node)
-            else:
-                for i_agent in intersect_agents:
-                    i_agent.path.append(i_agent.path[-1])  # !!!
-                    i_agent.return_path_tuples.append(i_agent.path[-1])
-
-    # update paths + execute the step
-    for agent in backward_step_agents:
-        assert len(agent.path) == iteration + 1
-        agent.prev_node = agent.curr_node
-        agent.curr_node = agent.path[iteration]
-        assert agent.curr_node == agent.return_path_tuples[-1]
-        assert agent.prev_node.xy_name in agent.curr_node.neighbours
-    return
-
-
-def align_all_paths[T](agents: T) -> None:
+def align_all_paths[T](agents: T) -> int:
     max_len = max([len(a.path) for a in agents])
     for a in agents:
         while len(a.path) < max_len:
             a.path.append(a.path[-1])
+    return max_len
 
 
 class AlgCGARAgent:
@@ -587,7 +471,7 @@ class AlgCGAR(AlgGeneric):
     def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
         - Block the goal vertex
-        - While curr_node is not the goal:
+        - While anyone is not in its goal:
             - If the plan is needed:
                 - If the next vertex is non-SV:
                     - build PIBT step
@@ -596,8 +480,9 @@ class AlgCGAR(AlgGeneric):
                     - Build EP for ev-agents in the corridor
                     - Evacuate ev-agents
                     - Build the steps in the corridor to the main agent
-            - execute step
-        - Reverse all agents that where moved away -> return
+            - execute forward step
+            - execute backward step
+        - return
         """
         if to_assert:
             set_lens = set([len(a.path) for a in self.agents])
@@ -642,7 +527,7 @@ class AlgCGAR(AlgGeneric):
 
             # execute the step
             # print('before execute_forward_step')
-            from_n_to_a_dict: Dict[str, AlgCGARAgent] = {a.curr_node.xy_name: a for a in self.agents}
+            ps_to_a_dict: Dict[str, AlgCGARAgent] = {a.curr_node.xy_name: a for a in self.agents}
             fs_to_a_dict: Dict[str, AlgCGARAgent] = {}
             to_config: Dict[str, Node] = {}
             for agent in forward_step_agents:
@@ -650,7 +535,7 @@ class AlgCGAR(AlgGeneric):
                 fs_to_a_dict[agent.curr_node.xy_name] = agent
                 to_config[agent.name] = agent.curr_node
             # print('before execute_backward_steps')
-            execute_backward_road(from_n_to_a_dict, backward_step_agents, future_captured_node_names, fs_to_a_dict, to_config,  self.agents, self.agents_dict, self.main_agent, self.nodes, iteration, to_assert=to_assert)
+            execute_backward_road(ps_to_a_dict, backward_step_agents, future_captured_node_names, fs_to_a_dict, to_config,  self.agents, self.agents_dict, self.main_agent, self.nodes, iteration, to_assert=to_assert)
             # execute_backward_steps(backward_step_agents, future_captured_node_names, self.agents, self.agents_num_dict, self.main_agent, self.nodes, iteration)
 
             if to_assert:

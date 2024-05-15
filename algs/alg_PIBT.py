@@ -92,7 +92,8 @@ def run_i_pibt[T](
         goals: Dict[str, Node] | None = None,
         node_name_to_agent_dict: Dict[str, T] | None = None,
         node_name_to_agent_list: List[str] | None = None,
-        blocked_nodes: List[Node] | None = None
+        blocked_nodes: List[Node] | None = None,
+        given_goal_node: Node | None = None
 ) -> Dict[str, Node]:
     if config_from is None:
         config_from: Dict[str, Node] = {agent.name: agent.curr_node for agent in agents}
@@ -106,6 +107,8 @@ def run_i_pibt[T](
         heapq.heapify(node_name_to_agent_list)
     if blocked_nodes is None:
         blocked_nodes = []
+    if given_goal_node:
+        goals[main_agent.name] = given_goal_node
     _ = procedure_i_pibt(main_agent, nodes_dict, h_dict, config_from, config_to, goals,
                          node_name_to_agent_dict, node_name_to_agent_list, blocked_nodes)
     return config_to
