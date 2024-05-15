@@ -297,7 +297,7 @@ class AlgCgaMapf(AlgGeneric):
 
         # ---------------------------------------------- Preparations ---------------------------------------------- #
         # build blocked nodes
-        blocked_nodes: List[Node] = get_blocked_nodes(self.agents, iteration)
+        # blocked_nodes: List[Node] = get_blocked_nodes(self.agents, iteration)
         config_from: Dict[str, Node] = {agent.name: agent.curr_node for agent in self.agents}
 
         # ---------------------------------------------------------------------------------------------------------- #
@@ -307,7 +307,7 @@ class AlgCgaMapf(AlgGeneric):
                 continue
             given_goal_node = agent.goal_node
             a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-            if agent.prev_node == agent.curr_node:
+            if len(agent.path) >= 4 and len(set(agent.path[-4:])) == 1:
                 is_good, message = is_enough_free_locations(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np, blocked_nodes)
                 if not is_good:
                     given_goal_node = get_alter_goal_node(agent, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes)
@@ -317,6 +317,7 @@ class AlgCgaMapf(AlgGeneric):
             a_next_node = get_min_h_nei_node(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
             if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
                 # calc single PIBT step
+                blocked_nodes: List[Node] = get_blocked_nodes(self.agents, iteration)
                 self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, iteration, to_assert=to_assert)
             else:
                 # elif i_priority == 0:
@@ -325,7 +326,7 @@ class AlgCgaMapf(AlgGeneric):
                                    to_assert=to_assert)
 
             # update blocked nodes + check that there are new nodes added to the list
-            blocked_nodes = get_blocked_nodes(self.agents, iteration)
+            # blocked_nodes = get_blocked_nodes(self.agents, iteration)
 
         # if no plan - just stay
         for agent in self.agents:

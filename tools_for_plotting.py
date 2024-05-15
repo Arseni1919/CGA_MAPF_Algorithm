@@ -238,7 +238,7 @@ def plot_step_in_env(ax, info):
         others_x_list.append(curr_node.x)
         others_cm_list.append(get_color(agent.num))
         if agent.curr_node == agent.goal_node:
-            alpha_list.append(0.4)
+            alpha_list.append(0.2)
         else:
             alpha_list.append(1)
     ax.scatter(others_y_list, others_x_list, s=100, c='k', alpha=alpha_list)
