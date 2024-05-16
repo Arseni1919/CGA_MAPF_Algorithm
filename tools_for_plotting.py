@@ -248,7 +248,7 @@ def plot_step_in_env(ax, info):
     if 'i_agent' in info:
         i_agent = info['i_agent']
         curr_node = i_agent.curr_node
-        next_goal_node = i_agent.goal_node
+        next_goal_node = i_agent.get_goal_node()
         ax.scatter([curr_node.y], [curr_node.x], s=200, c='k')
         ax.scatter([curr_node.y], [curr_node.x], s=100, c='r')
         ax.scatter([next_goal_node.y], [next_goal_node.x], s=400, c='white', marker='X', alpha=0.4)

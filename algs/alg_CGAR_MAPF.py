@@ -7,7 +7,16 @@ from algs.alg_generic_class import AlgGeneric
 from algs.alg_CGAR import AlgCGAR, get_min_h_nei_node
 
 
-def is_enough_free_locations(curr_node: Node, goal_node: Node, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], other_curr_nodes: List[Node], non_sv_nodes_np: np.ndarray, blocked_nodes: List[Node] | None = None) -> Tuple[bool, str]:
+def is_enough_free_locations(
+        curr_node: Node,
+        goal_node: Node,
+        nodes_dict: Dict[str, Node],
+        h_dict: Dict[str, np.ndarray],
+        other_curr_nodes: List[Node],
+        non_sv_nodes_np: np.ndarray,
+        blocked_nodes: List[Node] | None = None
+) -> Tuple[bool, str]:
+    # TODO: to correct
     next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
     full_path: List[Node] = [next_node]
     open_list: List[Node] = [next_node]
@@ -19,6 +28,10 @@ def is_enough_free_locations(curr_node: Node, goal_node: Node, nodes_dict: Dict[
         closed_list_names.extend([n.xy_name for n in blocked_nodes])
     heapq.heapify(closed_list_names)
 
+    if next_node == goal_node:
+        if next_node not in other_curr_nodes:
+            return True, 'good'
+        return False, 'next node is a goal node and is occupied'
     # calc the biggest corridor
     sv_list = [0]
     sv_count = 0
@@ -32,6 +45,7 @@ def is_enough_free_locations(curr_node: Node, goal_node: Node, nodes_dict: Dict[
         full_path.append(next_node)
     max_corridor = max(sv_list)
 
+    # count available free locations
     free_count = 0
     while len(open_list) > 0:
         next_node = open_list.pop()
@@ -40,7 +54,7 @@ def is_enough_free_locations(curr_node: Node, goal_node: Node, nodes_dict: Dict[
         is_in_corridor = next_node in full_path
         if not is_in_corridor and not is_sv_and_in_full_path and next_node not in other_curr_nodes:
             free_count += 1
-            if free_count >= max_corridor + 5:
+            if free_count >= max_corridor + 2:
                 return True, 'good'
         for nei_name in next_node.neighbours:
             if nei_name == next_node.xy_name:

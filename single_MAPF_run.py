@@ -10,7 +10,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
     # General params
     # ------------------------------------------------------------------------------------------------------------ #
     # set_seed(random_seed_bool=False, seed=381)
-    set_seed(random_seed_bool=False, seed=5781)  # 600  random-32-32-20.map
+    set_seed(random_seed_bool=False, seed=9256)  # 500
     # set_seed(random_seed_bool=True)
 
     if is_SACGR:
@@ -48,7 +48,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 400
+        N = 200
         i_problems = 1
         # img_dir = '10_10_my_rand.map'
         # img_dir = '15-15-two-rooms.map'
@@ -70,12 +70,12 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # to_assert = True
         to_assert = False
         # rendering
-        # to_render = True
-        to_render = False
+        to_render = True
+        # to_render = False
         # to_save_animation = True
         to_save_animation = False
-        to_do_animation = True
-        # to_do_animation = False
+        # to_do_animation = True
+        to_do_animation = False
         # ------------------------------------------------------------------------------------------------------------ #
         # ------------------------------------------------------------------------------------------------------------ #
         # ------------------------------------------------------------------------------------------------------------ #

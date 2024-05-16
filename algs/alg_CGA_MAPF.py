@@ -1,3 +1,7 @@
+import heapq
+
+import numpy as np
+
 from tools_for_plotting import *
 from tools_for_heuristics import *
 from tools_for_graph_nodes import *
@@ -9,21 +13,47 @@ from algs.alg_CGAR import *
 from algs.alg_CGAR_MAPF import is_enough_free_locations
 
 
-def get_alter_goal_node[T](agent: T, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes) -> Node | None:
+def calc_road_to_goal(next_node: Node, goal_node: Node, nodes_dict: dict, h_dict: dict) -> List[Node]:
+    sv_list = [0]
+    sv_count = 0
+    full_path = [next_node]
+    while next_node != goal_node:
+        next_node = get_min_h_nei_node(next_node, goal_node, nodes_dict, h_dict)
+        full_path.append(next_node)
+    return full_path
+
+
+def agents_on_road_moving[T](given_a: T, given_goal: Node, nodes_dict: dict, h_dict: dict, node_name_to_agent_dict: Dict[str, T], node_name_to_agent_list: List[str]) -> Tuple[bool, bool]:
+    road = calc_road_to_goal(given_a.curr_node, given_goal, nodes_dict, h_dict)
+    there_are_agents_on_road = False
+    for n in road:
+        if n.xy_name in node_name_to_agent_list:
+            other_a = node_name_to_agent_dict[n.xy_name]
+            if other_a != given_a:
+                continue
+            there_are_agents_on_road = True
+            if other_a.is_moving:
+                return there_are_agents_on_road, True
+    return there_are_agents_on_road, False
+
+
+def inner_get_alter_goal_node[T](
+        agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node], non_sv_nodes_with_blocked_np: np.ndarray,
+        blocked_nodes: List[Node], node_name_to_agent_list: List[str], add_to_closed_names: List[str]) -> Node | None:
     open_list = deque([agent.curr_node])
     closed_list_names = []
+    closed_list_names.extend(add_to_closed_names)
     main_goal_node: Node = agent.goal_node
     main_goal_non_sv_np = non_sv_nodes_with_blocked_np[main_goal_node.x, main_goal_node.y]
     while len(open_list) > 0:
         alt_node: Node = open_list.popleft()
-        if main_goal_non_sv_np[alt_node.x, alt_node.y] and alt_node != agent.curr_node:
+        if main_goal_non_sv_np[alt_node.x, alt_node.y] and alt_node != agent.curr_node and alt_node.xy_name not in node_name_to_agent_list:  # and alt_node.xy_name not in node_name_to_agent_list
             alt_non_sv_np = non_sv_nodes_with_blocked_np[alt_node.x, alt_node.y]
-            alt_is_good, alt_message = is_enough_free_locations(agent.curr_node, alt_node, nodes_dict, h_dict,
-                                                                curr_nodes, alt_non_sv_np, blocked_nodes)
-            main_is_good, main_message = is_enough_free_locations(alt_node, main_goal_node, nodes_dict, h_dict,
-                                                                  curr_nodes, main_goal_non_sv_np, blocked_nodes)
-            if alt_is_good and main_is_good:
-                return alt_node
+            alt_is_good, alt_message = is_enough_free_locations(agent.curr_node, alt_node, nodes_dict, h_dict, curr_nodes, alt_non_sv_np, blocked_nodes)
+            if alt_is_good:
+                main_is_good, main_message = is_enough_free_locations(alt_node, main_goal_node, nodes_dict, h_dict, curr_nodes, main_goal_non_sv_np, blocked_nodes)
+                if alt_is_good and main_is_good:
+                    return alt_node
         for nn in alt_node.neighbours:
             if nn == alt_node.xy_name:
                 continue
@@ -39,15 +69,42 @@ def get_alter_goal_node[T](agent: T, nodes_dict, h_dict, curr_nodes, non_sv_node
     return None
 
 
-def get_blocked_nodes[T](agents: T, iteration: int) -> List[Node]:
+def get_alter_goal_node[T](agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node], non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], node_name_to_agent_list: List[str]) -> Node | None:
+    add_to_closed_names = [agent.goal_node.xy_name]
+    alter_goal_node = inner_get_alter_goal_node(agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes, node_name_to_agent_list, add_to_closed_names=add_to_closed_names)
+    if alter_goal_node is None:
+        alter_goal_node = inner_get_alter_goal_node(agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes, node_name_to_agent_list, add_to_closed_names=[])
+    return alter_goal_node
+
+
+def get_blocked_nodes[T](agents: T, iteration: int) -> Tuple[List[Node], List[T]]:
     blocked_nodes: List[Node] = []
+    planned_agents: List[T] = []
     for agent in agents:
         # assert len(agent.path) - 1 == iteration - 1
         if len(agent.path) > iteration:
+            # heapq.heappush(planned_agents, agent)
+            # planned_agents.append(agent)
+            for n in agent.path[iteration:]:
+                # heapq.heappush(blocked_nodes, n)
+                blocked_nodes.append(n)
+    # assert len(blocked_nodes_names) == 0
+    # heapq.heapify(blocked_nodes)
+    return blocked_nodes, planned_agents
+
+
+def update_blocked_nodes[T](agents: T, iteration: int, blocked_nodes: List[Node], planned_agents: List[T]) -> Tuple[List[Node], List[T]]:
+    for agent in agents:
+        if agent in planned_agents:
+            continue
+        # assert len(agent.path) - 1 == iteration - 1
+        if len(agent.path) > iteration:
+            planned_agents.append(agent)
+            # heapq.heappush(planned_agents, agent)
             for n in agent.path[iteration:]:
                 heapq.heappush(blocked_nodes, n)
     # assert len(blocked_nodes_names) == 0
-    return blocked_nodes
+    return blocked_nodes, planned_agents
 
 
 class AlgCgaMapfAgent:
@@ -57,6 +114,7 @@ class AlgCgaMapfAgent:
         self.prev_node: Node = start_node
         self.curr_node: Node = start_node
         self.goal_node: Node = goal_node
+        self.alt_goal_node: Node | None = None
         self.nodes = nodes
         self.nodes_dict = nodes_dict
         self.path: List[Node] = [start_node]
@@ -107,8 +165,22 @@ class AlgCgaMapfAgent:
     def a_start_node_name(self):
         return self.start_node.xy_name
 
+    @property
+    def is_moving(self):
+        return self.curr_node != self.get_goal_node()
+
+    @property
+    def temp_arrived(self):
+        return self.curr_node == self.get_goal_node()
+
     def __eq__(self, other):
         return self.num == other.num
+
+    def __lt__(self, other):
+        return self.num < other.num
+
+    def __gt__(self, other):
+        return self.num > other.num
 
     def __hash__(self):
         return hash(self.num)
@@ -118,6 +190,8 @@ class AlgCgaMapfAgent:
         self.prev_node = self.curr_node
         self.curr_node = self.path[iteration]
         assert self.prev_node.xy_name in self.curr_node.neighbours
+        if self.alt_goal_node is not None and self.curr_node == self.alt_goal_node:
+            self.alt_goal_node = None
 
         # if not self.first_arrived and self.curr_node == self.goal_node and len(self.path) - 1 == iteration:
         #     self.first_arrived = True
@@ -128,6 +202,11 @@ class AlgCgaMapfAgent:
         # if self.first_arrived:
         #     if self.curr_node != self.return_road[-1][3]:
         #         self.return_road.append((self.curr_node.xy_name, iteration, [], self.curr_node))
+
+    def get_goal_node(self) -> Node:
+        if self.alt_goal_node is None:
+            return self.goal_node
+        return self.alt_goal_node
 
     def get_wl(self, node: Node, to_assert: bool = False):
         return self.waiting_table[node.xy_name]
@@ -196,16 +275,20 @@ class AlgCgaMapf(AlgGeneric):
         return [a.curr_node for a in self.agents]
 
     @property
+    def arrived_curr_nodes(self):
+        return [a.curr_node for a in self.agents if a.curr_node == a.get_goal_node()]
+
+    @property
     def curr_nodes_names(self):
         return [a.curr_node.xy_name for a in self.agents]
 
     @property
     def goal_nodes(self):
-        return [a.goal_node for a in self.agents]
+        return [a.get_goal_node() for a in self.agents]
 
     @property
     def goal_nodes_names(self):
-        return [a.goal_node.xy_name for a in self.agents]
+        return [a.get_goal_node().xy_name for a in self.agents]
 
     @property
     def n_solved(self) -> int:
@@ -233,8 +316,7 @@ class AlgCgaMapf(AlgGeneric):
         # frankly, we need to check here the minimum number of free non-SV locations
         return True, 'good'
 
-    def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[
-        bool, Dict[str, List[Node]]]:
+    def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
         - while not everyone are at their goals:
             - calc_next_step()
@@ -258,7 +340,7 @@ class AlgCgaMapf(AlgGeneric):
             self.all_calc_next_steps(iteration, to_assert)
             fs_to_a_dict = self.all_execute_forward_steps(iteration, to_assert)
             # self.all_execute_backward_step(iteration, to_assert)
-            self.update_priorities(fs_to_a_dict, to_assert)
+            self.update_priorities(fs_to_a_dict, iteration, to_assert)
 
             if to_assert:
                 check_vc_ec_neic_iter(self.agents, iteration)
@@ -268,7 +350,7 @@ class AlgCgaMapf(AlgGeneric):
                   end='')
             if to_render and iteration >= 0:
                 i_agent = self.agents[0]
-                non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.goal_node.x, i_agent.goal_node.y]
+                non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
                 plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent,
                              'non_sv_nodes_np': non_sv_nodes_np}
                 plot_step_in_env(ax[0], plot_info)
@@ -297,28 +379,60 @@ class AlgCgaMapf(AlgGeneric):
 
         # ---------------------------------------------- Preparations ---------------------------------------------- #
         # build blocked nodes
-        # blocked_nodes: List[Node] = get_blocked_nodes(self.agents, iteration)
-        config_from: Dict[str, Node] = {agent.name: agent.curr_node for agent in self.agents}
-
+        config_to: Dict[str, Node] = {}
+        config_from: Dict[str, Node] = {}
+        goals: Dict[str, Node] = {}
+        node_name_to_agent_dict: Dict[str, AlgCgaMapfAgent] = {}
+        node_name_to_agent_list: List[str] = []
+        for agent in self.agents:
+            config_from[agent.name] = agent.curr_node
+            goals[agent.name] = agent.get_goal_node()
+            node_name_to_agent_dict[agent.curr_node.xy_name] = agent
+            heapq.heappush(node_name_to_agent_list, agent.curr_node.xy_name)
+        # node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
+        # heapq.heapify(node_name_to_agent_list)
         # ---------------------------------------------------------------------------------------------------------- #
         for i_priority, agent in enumerate(self.agents):
             # already planned
             if len(agent.path) - 1 >= iteration:
                 continue
-            given_goal_node = agent.goal_node
+            # already at its goal
+            if agent.curr_node == agent.get_goal_node():
+                # if agent.curr_node == agent.goal_node:
+                continue
+
+            # decide on the goal
+            given_goal_node = agent.get_goal_node()
             a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-            if len(agent.path) >= 4 and len(set(agent.path[-4:])) == 1:
-                is_good, message = is_enough_free_locations(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np, blocked_nodes)
-                if not is_good:
-                    given_goal_node = get_alter_goal_node(agent, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes)
-                    # assert given_goal_node is not None
-                    if given_goal_node is None:
-                        continue
+            blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
+            is_good, message = is_enough_free_locations(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict,
+                                                        self.curr_nodes, a_non_sv_nodes_np, blocked_nodes)
+            if not is_good:
+                # print(f'\n{agent.name}: {message}')
+                continue
+            # wait_until_check = 5
+            # if len(agent.path) >= wait_until_check and len(set(agent.path[-wait_until_check:])) == 1:
+                # there_are_agents_on_road, agents_are_moving = agents_on_road_moving(
+                #     agent, given_goal_node, self.nodes_dict, self.h_dict, node_name_to_agent_dict, node_name_to_agent_list)
+                # if there_are_agents_on_road and agents_are_moving:
+                #     continue
+                # blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
+                # is_good, message = is_enough_free_locations(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np, [])
+                # if not is_good:
+                #     print()
+            #         given_goal_node = get_alter_goal_node(agent, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes, node_name_to_agent_list)
+            #         # assert given_goal_node is not None
+            #         if given_goal_node is None:
+            #             continue
+            #         agent.alt_goal_node = given_goal_node
+
             a_next_node = get_min_h_nei_node(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
             if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
                 # calc single PIBT step
-                blocked_nodes: List[Node] = get_blocked_nodes(self.agents, iteration)
-                self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, iteration, to_assert=to_assert)
+                # blocked_nodes, planned_agents = update_blocked_nodes(self.agents, iteration, blocked_nodes, planned_agents)
+                blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
+                self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, config_to, goals,
+                                    node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
             else:
                 # elif i_priority == 0:
                 # calc evacuation of agents from the corridor
@@ -336,15 +450,17 @@ class AlgCgaMapf(AlgGeneric):
 
         # ---------------------------------------------------------------------------------------------------------- #
 
-    def calc_pibt_step(self, main_agent: AlgCgaMapfAgent, given_goal_node: Node, blocked_nodes: List[Node],
-                       config_from: Dict[str, Node], iteration: int, to_assert: bool = False) -> Dict[str, Node]:
+    def calc_pibt_step[T](self, main_agent: AlgCgaMapfAgent, given_goal_node: Node, blocked_nodes: List[Node],
+                       config_from: Dict[str, Node], config_to: Dict[str, Node], goals: Dict[str, Node],
+                          node_name_to_agent_dict: Dict[str, T], node_name_to_agent_list: List[str],
+                          iteration: int, to_assert: bool = False) -> Dict[str, Node]:
         # print(f'\n --- inside calc_pibt_step {iteration} --- ')
         assert len(main_agent.path) == iteration
 
         # Preps
-        config_to = {}
+        # config_to = {}
         for agent in self.agents:
-            if len(agent.path) - 1 >= iteration:
+            if agent.name not in config_to and len(agent.path) - 1 >= iteration:
                 config_to[agent.name] = agent.path[iteration]
         if to_assert:
             assert len(set(config_to.values())) == len(set(config_to.keys()))
@@ -354,8 +470,9 @@ class AlgCgaMapf(AlgGeneric):
         curr_blocked_nodes.append(given_goal_node)
         config_to = run_i_pibt(
             main_agent=main_agent, agents=self.agents, nodes_dict=self.nodes_dict, h_dict=self.h_dict,
-            config_from=config_from, config_to=config_to, blocked_nodes=curr_blocked_nodes,
-            given_goal_node=given_goal_node)
+            config_from=config_from, config_to=config_to, goals=goals,
+            node_name_to_agent_dict=node_name_to_agent_dict, node_name_to_agent_list=node_name_to_agent_list,
+            blocked_nodes=curr_blocked_nodes, given_goal_node=given_goal_node)
 
         # Update paths
         for agent in self.agents:
@@ -449,16 +566,18 @@ class AlgCgaMapf(AlgGeneric):
             # a_name_to_fs_config_to[agent.name] = agent.curr_node
         return fs_to_a_dict
 
-    def update_priorities(self, fs_to_a_dict: Dict[str, AlgCgaMapfAgent], to_assert: bool = False) -> None:
+    def update_priorities(self, fs_to_a_dict: Dict[str, AlgCgaMapfAgent], iteration: int, to_assert: bool = False) -> None:
         init_len = len(self.agents)
-        unfinished: List[AlgCgaMapfAgent] = [a for a in self.agents if a.curr_node != a.goal_node]
+        unfinished: List[AlgCgaMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
         # random.shuffle(unfinished)
-        goal_free_list: List[AlgCgaMapfAgent] = [a for a in unfinished if a.goal_node.xy_name not in fs_to_a_dict]
-        not_goal_free_list: List[AlgCgaMapfAgent] = [a for a in unfinished if a.goal_node.xy_name in fs_to_a_dict]
-        finished: List[AlgCgaMapfAgent] = [a for a in self.agents if a.curr_node == a.goal_node]
+        # goal_free_list: List[AlgCgaMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name not in fs_to_a_dict]
+        # not_goal_free_list: List[AlgCgaMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name in fs_to_a_dict]
+        # goal_free_list: List[AlgCgaMapfAgent] = [a for a in unfinished if a.get_goal_node() not in a.path[iteration:]]
+        # not_goal_free_list: List[AlgCgaMapfAgent] = [a for a in unfinished if a.get_goal_node() in a.path[iteration:]]
+        finished: List[AlgCgaMapfAgent] = [a for a in self.agents if a.curr_node == a.get_goal_node()]
         random.shuffle(finished)
-        # self.agents = [*unfinished, *finished]
-        self.agents = [*goal_free_list, *not_goal_free_list, *finished]
+        self.agents = [*unfinished, *finished]
+        # self.agents = [*goal_free_list, *not_goal_free_list, *finished]
         assert len(set(self.agents)) == init_len
 
 

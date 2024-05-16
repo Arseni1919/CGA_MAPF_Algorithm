@@ -236,9 +236,9 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List
     prev_len = len(node.neighbours)
     init_nei_names = node.neighbours[:]
     init_nei_names.remove(node.xy_name)
-    for n in blocked_nodes:
-        if n.xy_name in init_nei_names:
-            init_nei_names.remove(n.xy_name)
+    # for n in blocked_nodes:
+    #     if n.xy_name in init_nei_names:
+    #         init_nei_names.remove(n.xy_name)
     if len(init_nei_names) in [0, 1]:
         return True
 

@@ -19,6 +19,8 @@ def build_vc_ec_from_configs(config_from: Dict[str, Node], config_to: Dict[str, 
             heapq.heappush(ec_set, (node_from.x, node_from.y, node_to.x, node_to.y))
             # vc_set.append((node_to.x, node_to.y))
             # ec_set.append((node_from.x, node_from.y, node_to.x, node_to.y))
+    # heapq.heapify(vc_set)
+    # heapq.heapify(ec_set)
     return vc_set, ec_set
 
 
@@ -108,6 +110,7 @@ def run_i_pibt[T](
     if blocked_nodes is None:
         blocked_nodes = []
     if given_goal_node:
+        goals = {k: v for k, v in goals.items()}
         goals[main_agent.name] = given_goal_node
     _ = procedure_i_pibt(main_agent, nodes_dict, h_dict, config_from, config_to, goals,
                          node_name_to_agent_dict, node_name_to_agent_list, blocked_nodes)
