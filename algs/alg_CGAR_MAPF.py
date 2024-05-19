@@ -26,7 +26,8 @@ def is_enough_free_locations(
         h_dict: Dict[str, np.ndarray],
         other_curr_nodes: List[Node],
         non_sv_nodes_np: np.ndarray,
-        blocked_nodes: List[Node] | None = None
+        blocked_nodes: List[Node] | None = None,
+        full_corridor_check: bool = False
 ) -> Tuple[bool, str, int, dict]:
     next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
     full_path: List[Node] = [next_node]
@@ -37,9 +38,6 @@ def is_enough_free_locations(
     heapq.heapify(closed_list_names)
     if blocked_nodes is None:
         blocked_nodes = []
-    # if blocked_nodes:
-    #     closed_list.extend(blocked_nodes)
-    #     closed_list_names.extend([n.xy_name for n in blocked_nodes])
     blocked_nodes_names = [n.xy_name for n in blocked_nodes]
     heapq.heapify(blocked_nodes_names)
 
@@ -50,7 +48,17 @@ def is_enough_free_locations(
 
     closest_corridor: List[Node] = build_corridor_from_nodes(curr_node, goal_node, nodes_dict, h_dict, non_sv_nodes_np)
     if closest_corridor[-1] == goal_node and closest_corridor[-1] in other_curr_nodes:
-        return False, f'FAILED - last corridor node {goal_node.xy_name} is a goal node and is occupied', 2, {}
+        return False, f'FAILED - last corridor node {goal_node.xy_name} is a goal node and is occupied', 2, {
+            'closest_corridor': [n.xy_name for n in closest_corridor]
+        }
+
+    if full_corridor_check:
+        corridor_blocked_list = list(set(closest_corridor).intersection(blocked_nodes))
+        if len(corridor_blocked_list) > 0:
+            return False, f'FAILED - part of the corridor is blocked: {[n.xy_name for n in corridor_blocked_list]}', 3, {
+                'closest_corridor': [n.xy_name for n in closest_corridor],
+                'corridor_blocked_list': [n.xy_name for n in corridor_blocked_list]
+            }
 
     # calc maximum required free nodes
     max_required_free_nodes = 0
@@ -59,7 +67,9 @@ def is_enough_free_locations(
         if n in other_curr_nodes:
             max_required_free_nodes += 1
     if max_required_free_nodes == 0:
-        return True, f'OK - {max_required_free_nodes=}', 0, {}
+        return True, f'OK - {max_required_free_nodes=}', 0, {
+            'closest_corridor': [n.xy_name for n in closest_corridor]
+        }
 
     # while next_node != goal_node:
     #     if next_node in other_curr_nodes:
@@ -82,7 +92,17 @@ def is_enough_free_locations(
         if next_node_out_of_full_path and next_node_is_not_occupied:
             free_count += 1
             if free_count >= max_required_free_nodes:
-                return True, f'OK - {free_count} free locations for {max_required_free_nodes=}', 0, {}
+                return True, f'OK - {free_count} free locations for {max_required_free_nodes=}', 0, {
+                    'closest_corridor': [n.xy_name for n in closest_corridor],
+                    'max_required_free_nodes': max_required_free_nodes,
+                    'free_count': free_count,
+                    'blocked_nodes': blocked_nodes,
+                    'open_list_names': open_list_names,
+                    'closed_list_names': closed_list_names,
+                    'blocked_nodes_names': blocked_nodes_names,
+                    'touched_blocked_nodes': touched_blocked_nodes,
+                    'touched_blocked_nodes_list': touched_blocked_nodes_list
+                }
         for nei_name in next_node.neighbours:
             if nei_name == next_node.xy_name:
                 continue
@@ -99,7 +119,7 @@ def is_enough_free_locations(
             heapq.heappush(open_list_names, nei_name)
         heapq.heappush(closed_list_names, next_node.xy_name)
 
-    error_num = 3 if touched_blocked_nodes else 4
+    error_num = 4 if touched_blocked_nodes else 5
     return False, 'FAILED - not_enough_free_nodes', error_num, {
         'closest_corridor': [n.xy_name for n in closest_corridor],
         'max_required_free_nodes': max_required_free_nodes,

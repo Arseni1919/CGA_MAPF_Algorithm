@@ -119,7 +119,7 @@ def get_min_h_nei_node(curr_node: Node, goal_node: Node, nodes_dict: Dict[str, N
     return min_h_nei_node
 
 
-def build_corridor_from_nodes[T](curr_node: Node, goal_node: Node, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray) -> List[Node]:
+def build_corridor_from_nodes(curr_node: Node, goal_node: Node, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray) -> List[Node]:
     main_next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
     corridor: List[Node] = [curr_node, main_next_node]
     while non_sv_nodes_np[main_next_node.x, main_next_node.y] == 0 and main_next_node != goal_node:
