@@ -119,6 +119,15 @@ def get_min_h_nei_node(curr_node: Node, goal_node: Node, nodes_dict: Dict[str, N
     return min_h_nei_node
 
 
+def build_corridor_from_nodes[T](curr_node: Node, goal_node: Node, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray) -> List[Node]:
+    main_next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
+    corridor: List[Node] = [curr_node, main_next_node]
+    while non_sv_nodes_np[main_next_node.x, main_next_node.y] == 0 and main_next_node != goal_node:
+        main_next_node = get_min_h_nei_node(main_next_node, goal_node, nodes_dict, h_dict)
+        corridor.append(main_next_node)
+    return corridor
+
+
 def build_corridor[T](main_agent: T, nodes_dict: Dict[str, Node], h_dict: Dict[str, np.ndarray], non_sv_nodes_np: np.ndarray, given_goal_node: Node | None = None) -> List[Node]:
     main_goal_node = main_agent.goal_node
     if given_goal_node:
@@ -337,6 +346,9 @@ class AlgCGARAgent:
     @property
     def a_start_node_name(self):
         return self.start_node.xy_name
+
+    def get_goal_node(self):
+        return self.goal_node
 
     def __eq__(self, other):
         return self.num == other.num
