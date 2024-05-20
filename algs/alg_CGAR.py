@@ -34,7 +34,7 @@ def update_waiting_tables[T](agents: List[T], fs_to_a_dict: Dict[str, T], from_n
                     affected_agent.add_to_wl(n, agent_on_road, or_i, to_assert)
 
 
-def execute_backward_road[T](from_n_to_a_dict: Dict[str, T], backward_step_agents: List[T], future_captured_node_names: List[str], fs_to_a_dict: Dict[str, T], to_config: Dict[str, Node],  agents: List[T], agents_dict: Dict[str, T], main_agent: T, nodes: List[Node], iteration: int, to_assert: bool = False) -> None:
+def execute_backward_road[T](from_n_to_a_dict: Dict[str, T], backward_step_agents: List[T], future_captured_node_names: List[str], fs_to_a_dict: Dict[str, T], to_config: Dict[str, Node],  agents: List[T], agents_dict: Dict[str, T], iteration: int, to_assert: bool = False) -> None:
     # ------------------------------------------------------------------ #
     def update_data(given_a: T, given_node: Node, to_pop: bool = False):
         to_config[given_a.name] = given_node
@@ -547,7 +547,7 @@ class AlgCGAR(AlgGeneric):
                 fs_to_a_dict[agent.curr_node.xy_name] = agent
                 to_config[agent.name] = agent.curr_node
             # print('before execute_backward_steps')
-            execute_backward_road(ps_to_a_dict, backward_step_agents, future_captured_node_names, fs_to_a_dict, to_config,  self.agents, self.agents_dict, self.main_agent, self.nodes, iteration, to_assert=to_assert)
+            execute_backward_road(ps_to_a_dict, backward_step_agents, future_captured_node_names, fs_to_a_dict, to_config,  self.agents, self.agents_dict, iteration, to_assert=to_assert)
             # execute_backward_steps(backward_step_agents, future_captured_node_names, self.agents, self.agents_num_dict, self.main_agent, self.nodes, iteration)
 
             if to_assert:

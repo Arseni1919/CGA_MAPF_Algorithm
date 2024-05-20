@@ -7,18 +7,6 @@ from algs.alg_generic_class import AlgGeneric
 from algs.alg_CGAR import AlgCGAR, get_min_h_nei_node, build_corridor_from_nodes
 
 
-# def is_enough_free_locations_for_next_corridor(
-#         curr_node: Node,
-#         goal_node: Node,
-#         nodes_dict: Dict[str, Node],
-#         h_dict: Dict[str, np.ndarray],
-#         other_curr_nodes: List[Node],
-#         non_sv_nodes_np: np.ndarray,
-#         blocked_nodes: List[Node] | None = None
-# ) -> Tuple[bool, str, int]:
-#     pass
-
-
 def is_enough_free_locations(
         curr_node: Node,
         goal_node: Node,
@@ -491,7 +479,7 @@ class AlgCGARSeqMAPF(AlgGeneric):
         raise RuntimeError('strange...')
 
 
-@use_profiler(save_dir='../stats/alg_cgar_mapf.pstat')
+@use_profiler(save_dir='../stats/alg_cgar_seq_mapf.pstat')
 def main():
     single_mapf_run(AlgCGARSeqMAPF, is_SACGR=False)
 
@@ -500,71 +488,69 @@ if __name__ == '__main__':
     main()
 
 
-    # def compress(self, paths_dict: Dict[str, List[Node]], to_assert: bool = False) -> None:
-    #     bridges: Dict[str, int] = {a.name: 0 for a in self.agents}
-    #
-    #     # cut the old paths
-    #     max_old_len = len(self.agents[0].path)
-    #     old_paths_dict: Dict[str, List[Node]] = {}
-    #     for agent in self.agents:
-    #         to_cut = 0
-    #         for node1, node2 in pairwise(reversed(agent.path)):
-    #             if node1 == node2:
-    #                 to_cut += 1
-    #                 continue
-    #             break
-    #         old_paths_dict[agent.name] = agent.path[: len(agent.path) - to_cut]
-    #         bridges[agent.name] += to_cut
-    #
-    #     # cut the new paths
-    #     max_new_len = len(paths_dict[self.agents[0].name])
-    #     new_paths_dict: Dict[str, List[Node]] = {}
-    #     for agent in self.agents:
-    #         to_cut = 0
-    #         for node1, node2 in pairwise(agent.path):
-    #             if node1 == node2:
-    #                 to_cut += 1
-    #                 continue
-    #             break
-    #         new_paths_dict[agent.name] = agent.path[to_cut:]
-    #         bridges[agent.name] += to_cut
-    #
-    #     # cut the bridges
-    #     min_cut = min(bridges.values())
-    #     for agent in self.agents:
-    #         bridges[agent.name] -= min_cut
-    #     assert min(bridges.values()) == 0
-    #
-    #     # concat paths
-    #     for agent in self.agents:
-    #         p1 = old_paths_dict[agent.name]
-    #         p2 = new_paths_dict[agent.name]
-    #         assert p1[-1] == p2[0]
-    #         bridge_num = bridges[agent.name]
-    #         bridge = [p1[-1] for _ in range(bridge_num)]
-    #         full_path = [*p1, *bridge, *p2]
-    #         agent.path = full_path
-    #         agent.curr_node = agent.path[-1]
-    #         if len(agent.path) > 1:
-    #             agent.prev_node = agent.path[-2]
-    #     if to_assert:
-    #         assert len(set([len(a.path) for a in self.agents])) == 1
+# def compress(self, paths_dict: Dict[str, List[Node]], to_assert: bool = False) -> None:
+#     bridges: Dict[str, int] = {a.name: 0 for a in self.agents}
+#
+#     # cut the old paths
+#     max_old_len = len(self.agents[0].path)
+#     old_paths_dict: Dict[str, List[Node]] = {}
+#     for agent in self.agents:
+#         to_cut = 0
+#         for node1, node2 in pairwise(reversed(agent.path)):
+#             if node1 == node2:
+#                 to_cut += 1
+#                 continue
+#             break
+#         old_paths_dict[agent.name] = agent.path[: len(agent.path) - to_cut]
+#         bridges[agent.name] += to_cut
+#
+#     # cut the new paths
+#     max_new_len = len(paths_dict[self.agents[0].name])
+#     new_paths_dict: Dict[str, List[Node]] = {}
+#     for agent in self.agents:
+#         to_cut = 0
+#         for node1, node2 in pairwise(agent.path):
+#             if node1 == node2:
+#                 to_cut += 1
+#                 continue
+#             break
+#         new_paths_dict[agent.name] = agent.path[to_cut:]
+#         bridges[agent.name] += to_cut
+#
+#     # cut the bridges
+#     min_cut = min(bridges.values())
+#     for agent in self.agents:
+#         bridges[agent.name] -= min_cut
+#     assert min(bridges.values()) == 0
+#
+#     # concat paths
+#     for agent in self.agents:
+#         p1 = old_paths_dict[agent.name]
+#         p2 = new_paths_dict[agent.name]
+#         assert p1[-1] == p2[0]
+#         bridge_num = bridges[agent.name]
+#         bridge = [p1[-1] for _ in range(bridge_num)]
+#         full_path = [*p1, *bridge, *p2]
+#         agent.path = full_path
+#         agent.curr_node = agent.path[-1]
+#         if len(agent.path) > 1:
+#             agent.prev_node = agent.path[-2]
+#     if to_assert:
+#         assert len(set([len(a.path) for a in self.agents])) == 1
 
 
-    # def create_non_sv_nodes_np_dict(self):
-    #     print('\nStart of the create_non_sv_nodes_np_dict function..')
-    #     self.non_sv_nodes_np_dict: Dict[str, np.ndarray] = {}
-    #     with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.agents)) as executor:
-    #         for agent in self.agents:
-    #             executor.submit(parallel_get_non_sv_nodes_np, agent, self.nodes, self.nodes_dict, self.img_np, self.non_sv_nodes_np_dict)
-    #     # for agent in self.agents:
-    #     #     blocked_nodes = [agent.goal_node]
-    #     #     non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, blocked_nodes=blocked_nodes)
-    #     #     self.non_sv_nodes_np_dict[agent.name] = non_sv_nodes_np
-    #     #     print(f'\n{agent.name} is finished.', end='')
-    #     print('\nCreate_non_sv_nodes_np_dict is finished.')
-
-
+# def create_non_sv_nodes_np_dict(self):
+#     print('\nStart of the create_non_sv_nodes_np_dict function..')
+#     self.non_sv_nodes_np_dict: Dict[str, np.ndarray] = {}
+#     with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.agents)) as executor:
+#         for agent in self.agents:
+#             executor.submit(parallel_get_non_sv_nodes_np, agent, self.nodes, self.nodes_dict, self.img_np, self.non_sv_nodes_np_dict)
+#     # for agent in self.agents:
+#     #     blocked_nodes = [agent.goal_node]
+#     #     non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np, blocked_nodes=blocked_nodes)
+#     #     self.non_sv_nodes_np_dict[agent.name] = non_sv_nodes_np
+#     #     print(f'\n{agent.name} is finished.', end='')
+#     print('\nCreate_non_sv_nodes_np_dict is finished.')
 
 # def parallel_get_non_sv_nodes_np[T](agent: T, nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray, non_sv_nodes_np_dict: Dict[str, np.ndarray]) -> None:
 #     print(f'\n{agent.name} started...', end='')

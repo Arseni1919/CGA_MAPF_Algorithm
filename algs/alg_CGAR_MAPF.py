@@ -9,65 +9,15 @@ from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
 from algs.alg_PIBT import run_i_pibt
-from algs.alg_CGAR import *
+from algs.alg_CGAR import align_all_paths, get_min_h_nei_node
+from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent, execute_backward_road
 from algs.alg_CGAR_Seq_MAPF import is_enough_free_locations
+from algs.alg_CGA_MAPF import get_alter_goal_node
 
 
-def inner_get_alter_goal_node[T](
-        agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
-        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], add_to_closed_names: List[str],
-        full_corridor_check: bool = False
-) -> Node | None:
-    open_list = deque([agent.curr_node])
-    closed_list_names = []
-    closed_list_names.extend(add_to_closed_names)
-    main_goal_node: Node = agent.goal_node
-    main_goal_non_sv_np = non_sv_nodes_with_blocked_np[main_goal_node.x, main_goal_node.y]
-    while len(open_list) > 0:
-        alt_node: Node = open_list.popleft()
-
-        # check the option
-        not_curr_node: bool = alt_node != agent.curr_node
-        non_sv_in_main: bool = main_goal_non_sv_np[alt_node.x, alt_node.y] == 1
-        # not_in_alt_goal_nodes: bool = alt_node not in alt_goal_nodes
-        alt_non_sv_np = non_sv_nodes_with_blocked_np[alt_node.x, alt_node.y]
-        alt_is_good, alt_message, i_error, info = is_enough_free_locations(
-            agent.curr_node, alt_node, nodes_dict, h_dict, curr_nodes,alt_non_sv_np, blocked_nodes, full_corridor_check)
-        # if not_curr_node and non_sv_in_main and not_in_alt_goal_nodes and alt_is_good:
-        if not_curr_node and non_sv_in_main and alt_is_good:
-            return alt_node
-
-        for nn in alt_node.neighbours:
-            if nn == alt_node.xy_name:
-                continue
-            if nn in closed_list_names:
-                continue
-            n = nodes_dict[nn]
-            if n in open_list:
-                continue
-            if n in blocked_nodes:
-                continue
-            open_list.append(n)
-        heapq.heappush(closed_list_names, alt_node.xy_name)
-    return None
-
-
-def get_alter_goal_node[T](
-        agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
-        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], full_corridor_check: bool = False
-) -> Node | None:
-    add_to_closed_names = [agent.goal_node.xy_name]
-    alter_goal_node = inner_get_alter_goal_node(
-        agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-        add_to_closed_names=add_to_closed_names, full_corridor_check=full_corridor_check)
-    if alter_goal_node is None:
-        add_to_closed_names = []
-        alter_goal_node = inner_get_alter_goal_node(
-            agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-            add_to_closed_names=add_to_closed_names, full_corridor_check=full_corridor_check)
-    if alter_goal_node is None:
-        return agent.goal_node
-    return alter_goal_node
+def all_reset_return_roads[T](agents: T, iteration: int):
+    for agent in agents:
+        agent.reset_return_road(iteration)
 
 
 def get_blocked_nodes_for_pibt[T](agents: T, iteration: int, need_to_freeze_main_goal_node: bool = False) -> List[Node]:
@@ -209,6 +159,15 @@ class AlgCgarMapfAgent:
         else:
             self.alt_goal_node = None
             self.setting_agent_name = None
+
+    def reset_return_road(self, iteration):
+        if self.first_arrived:
+            if self.curr_node == self.goal_node:
+                self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque([(self.goal_node.xy_name, iteration, [], self.goal_node)])
+            else:
+                self.first_arrived = False
+                self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque()
+            self.waiting_table: Dict[str, List[Tuple[str, int]]] = {n.xy_name: [] for n in self.nodes}
 
     def get_wl(self, node: Node, to_assert: bool = False):
         return self.waiting_table[node.xy_name]
@@ -357,7 +316,7 @@ class AlgCgarMapf(AlgGeneric):
                 plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent,
                              'non_sv_nodes_np': non_sv_nodes_np}
                 plot_step_in_env(ax[0], plot_info)
-                # plot_return_paths(ax[1], plot_info)
+                plot_return_paths(ax[1], plot_info)
                 plt.pause(plot_rate)
 
         if to_assert:
@@ -408,7 +367,9 @@ class AlgCgarMapf(AlgGeneric):
                 continue
 
             if agent.priority == 0:
+                # extends path of the main agent and paths of others
                 self.main_agent_decision(agent, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+
             else:
                 self.regular_agent_decision(agent, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
 
@@ -422,42 +383,52 @@ class AlgCgarMapf(AlgGeneric):
             if len(agent.path) == iteration:
                 agent.path.append(agent.path[-1])
         # ---------------------------------------------------------------------------------------------------------- #
-
         # ---------------------------------------------------------------------------------------------------------- #
+
 
     def main_agent_decision(
             self, main_agent: AlgCgarMapfAgent, config_from: Dict[str, Node], config_to: Dict[str, Node],  goals: Dict[str, Node],
             node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str], iteration: int, to_assert: bool) -> None:
 
-        # decide on the goal
         assert main_agent.priority == 0
         given_goal_node = main_agent.get_goal_node()
         a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
         blocked_nodes = get_blocked_nodes_for_ev(self.agents, iteration)
+
+        # ---------------------------------------------------------------------------------------------------------- #
+        # Liberate the goal location and freeze
+        # ---------------------------------------------------------------------------------------------------------- #
+        if main_agent.get_goal_node().xy_name in node_name_to_agent_list:
+            distur_a = node_name_to_agent_dict[main_agent.get_goal_node().xy_name]
+            if len(distur_a.path) - 1 >= iteration:
+                return
+            if distur_a.alt_goal_node is not None:
+                assert distur_a.setting_agent_name == main_agent.name
+            distur_a_alter_goal_node = get_alter_goal_node(distur_a, self.nodes_dict, self.h_dict, self.curr_nodes,
+                                                           self.non_sv_nodes_with_blocked_np, blocked_nodes)
+            distur_a.reset_alt_goal_node(distur_a_alter_goal_node, main_agent)
+            self.need_to_freeze_main_goal_node = True
+            goals = {a.name: a.get_goal_node() for a in self.agents}
+            self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict,
+                                        node_name_to_agent_list, iteration, to_assert)
+            all_reset_return_roads(self.agents, iteration)
+            return
+
+        # ---------------------------------------------------------------------------------------------------------- #
+        # deal with failures
+        # ---------------------------------------------------------------------------------------------------------- #
         is_good, message, i_error, info = is_enough_free_locations(
             main_agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np,
             blocked_nodes, full_corridor_check=True)
         if not is_good:
-            # print(f'\n{agent.name}: {message}')
-            if i_error in [1, 2]:
-                print(f'\n{i_error=}, {message}')
-                distur_a = node_name_to_agent_dict[main_agent.get_goal_node().xy_name]
-                if len(distur_a.path) - 1 >= iteration:
-                    return
-                if distur_a.alt_goal_node is not None:
-                    assert distur_a.setting_agent_name == main_agent.name
-                    # self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
-                    # return
-                distur_a_alter_goal_node = get_alter_goal_node(distur_a, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes)
-                distur_a.reset_alt_goal_node(distur_a_alter_goal_node, main_agent)
-                self.need_to_freeze_main_goal_node = True
-                goals = {a.name: a.get_goal_node() for a in self.agents}
-                self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
-                return
+            # THERE IS AN AGENT IN THE GOAL LOCATION
+            assert i_error not in [1, 2]
+            # THE SEARCH OF THE CORRIDOR IS BLOCKED BY PATHS OF OTHER AGENTS
             if i_error in [3, 4]:
                 print(f'\n{i_error=}, {message}')
                 main_agent.path.append(main_agent.path[-1])
                 return
+            # THE GOAL IS UNREACHABLE - NEED TO CHANGE START LOCATION
             if i_error in [5]:
                 print(f'\n{i_error=}, {message}')
                 a_alter_goal_node = get_alter_goal_node(
@@ -466,21 +437,29 @@ class AlgCgarMapf(AlgGeneric):
                 main_agent.reset_alt_goal_node(a_alter_goal_node, main_agent)
                 given_goal_node = main_agent.get_goal_node()
                 a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-                # return
 
+        # ---------------------------------------------------------------------------------------------------------- #
+        # EXECUTE THE FORWARD STEP
+        # ---------------------------------------------------------------------------------------------------------- #
         a_next_node = get_min_h_nei_node(main_agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
         if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
             # calc single PIBT step
-            # print(f'\npibt step')
             blocked_nodes = get_blocked_nodes_for_pibt(self.agents, iteration)
             self.calc_pibt_step(main_agent, given_goal_node, blocked_nodes, config_from, config_to, goals,
                                 node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
         else:
             # calc evacuation of agents from the corridor
-            # print(f'\nev step')
             self.calc_ep_steps(main_agent, given_goal_node, config_from,
                                node_name_to_agent_dict, node_name_to_agent_list, a_non_sv_nodes_np,
                                iteration, to_assert=to_assert)
+        # ---------------------------------------------------------------------------------------------------------- #
+        # EXECUTE THE BACKWARD STEP
+        # ---------------------------------------------------------------------------------------------------------- #
+        execute_backward_road(
+            node_name_to_agent_dict, backward_step_agents, future_captured_node_names, fs_to_a_dict, to_config,
+            self.agents, self.agents_dict, iteration, to_assert=to_assert
+        )
+        return
 
     def regular_agent_decision(
             self, agent: AlgCgarMapfAgent, config_from: Dict[str, Node], config_to: Dict[str, Node], goals: Dict[str, Node],
@@ -639,7 +618,7 @@ class AlgCgarMapf(AlgGeneric):
             self.need_to_freeze_main_goal_node = False
 
 
-@use_profiler(save_dir='../stats/alg_cga_mapf.pstat')
+@use_profiler(save_dir='../stats/alg_cgar_mapf.pstat')
 def main():
     # single_mapf_run(AlgCgaMapf, is_SACGR=True)
     single_mapf_run(AlgCgarMapf, is_SACGR=False)
