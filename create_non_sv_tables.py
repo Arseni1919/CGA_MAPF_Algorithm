@@ -38,6 +38,7 @@ def get_non_sv_nodes_with_blocked_np[T](node: T, nodes: List[Node], nodes_dict: 
 
 def create_non_sv_nodes_with_blocked_np(nodes: List[Node], nodes_dict: Dict[str, Node], img_np: np.ndarray, img_dir: str):
     # x, y, x, y
+    print(f'Started to create blocked_{img_dir[:-4]}.npy...')
     non_sv_nodes_with_blocked_np: np.ndarray = np.zeros((img_np.shape[0], img_np.shape[1], img_np.shape[0], img_np.shape[1]))
     for node in nodes:
         get_non_sv_nodes_with_blocked_np(node, nodes, nodes_dict, img_np, non_sv_nodes_with_blocked_np)
@@ -45,7 +46,7 @@ def create_non_sv_nodes_with_blocked_np(nodes: List[Node], nodes_dict: Dict[str,
     possible_dir = f'logs_for_freedom_maps/blocked_{img_dir[:-4]}.npy'
     with open(possible_dir, 'wb') as f:
         np.save(f, non_sv_nodes_with_blocked_np)
-        print('Saved freedom nodes (with blocked options).')
+        print(f'Saved freedom nodes of {img_dir} (with blocked options) to {possible_dir}.')
 
 
 
@@ -58,10 +59,10 @@ def main():
 
     # img_dir = 'empty-32-32.map'
     # img_dir = 'random-32-32-10.map'
-    # img_dir = 'random-32-32-20.map'
+    img_dir = 'random-32-32-20.map'
     # img_dir = 'maze-32-32-4.map'
     # img_dir = 'maze-32-32-2.map'
-    img_dir = 'room-32-32-4.map'
+    # img_dir = 'room-32-32-4.map'
 
     path_to_maps: str = 'maps'
     map_dim = get_dims_from_pic(img_dir=img_dir, path=path_to_maps)

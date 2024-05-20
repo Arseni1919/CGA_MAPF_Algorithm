@@ -10,7 +10,7 @@ from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
 from algs.alg_PIBT import run_i_pibt
 from algs.alg_CGAR import *
-from algs.alg_CGAR_MAPF import is_enough_free_locations
+from algs.alg_CGAR_Seq_MAPF import is_enough_free_locations
 
 
 def inner_get_alter_goal_node[T](
@@ -245,6 +245,7 @@ class AlgCgaMapfAgent:
 
 
 class AlgCgaMapf(AlgGeneric):
+
     name = 'CGA-MAPF'
 
     def __init__(self, env: SimEnvMAPF):
@@ -353,9 +354,9 @@ class AlgCgaMapf(AlgGeneric):
                 check_vc_ec_neic_iter(self.agents, iteration)
 
             # print + render
-            print(f'\r{'*' * 20} | [CGA-MAPF] {iteration=} | solved: {self.n_solved}/{self.n_agents} | {'*' * 20}',
+            print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | {'*' * 20}',
                   end='')
-            if to_render and iteration >= 310:
+            if to_render and iteration >= 0:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[
                     i_agent.get_goal_node().x, i_agent.get_goal_node().y]
