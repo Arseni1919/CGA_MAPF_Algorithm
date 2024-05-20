@@ -51,7 +51,7 @@ def create_non_sv_nodes_with_blocked_np(nodes: List[Node], nodes_dict: Dict[str,
 
 
 def main():
-    # img_dir = '10_10_my_rand.map'
+    img_dir = '10_10_my_rand.map'
     # img_dir = '15-15-two-rooms.map'
     # img_dir = '15-15-four-rooms.map'
     # img_dir = '15-15-six-rooms.map'
@@ -59,7 +59,7 @@ def main():
 
     # img_dir = 'empty-32-32.map'
     # img_dir = 'random-32-32-10.map'
-    img_dir = 'random-32-32-20.map'
+    # img_dir = 'random-32-32-20.map'
     # img_dir = 'maze-32-32-4.map'
     # img_dir = 'maze-32-32-2.map'
     # img_dir = 'room-32-32-4.map'

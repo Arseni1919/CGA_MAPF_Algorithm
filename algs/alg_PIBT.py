@@ -185,6 +185,9 @@ class AlgPIBTAgent:
     def __eq__(self, other):
         return self.num == other.num
 
+    def get_goal_node(self):
+        return self.goal_node
+
 
 class AlgPIBT(AlgGeneric):
     name = 'PIBT'

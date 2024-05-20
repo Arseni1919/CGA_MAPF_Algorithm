@@ -133,7 +133,7 @@ def is_enough_free_locations(
     }
 
 
-class AlgCGARMAPFAgent:
+class AlgCGARSeqMAPFAgent:
     def __init__(self, num: int, start_node: Node, goal_node: Node):
         self.num = num
         self.start_node: Node = start_node
@@ -178,7 +178,7 @@ class AlgCGARMAPFAgent:
         return hash(self.num)
 
 
-class AlgCGARMAPF(AlgGeneric):
+class AlgCGARSeqMAPF(AlgGeneric):
 
     name = 'CGAR-Seq-MAPF'
 
@@ -200,10 +200,10 @@ class AlgCGARMAPF(AlgGeneric):
         self.h_dict = self.env.h_dict
 
         # for the problem
-        self.agents: List[AlgCGARMAPFAgent] = []
-        self.agents_dict: Dict[str, AlgCGARMAPFAgent] = {}
-        self.agents_num_dict: Dict[int, AlgCGARMAPFAgent] = {}
-        self.agents_open_list: deque[AlgCGARMAPFAgent] = deque()
+        self.agents: List[AlgCGARSeqMAPFAgent] = []
+        self.agents_dict: Dict[str, AlgCGARSeqMAPFAgent] = {}
+        self.agents_num_dict: Dict[int, AlgCGARSeqMAPFAgent] = {}
+        self.agents_open_list: deque[AlgCGARSeqMAPFAgent] = deque()
         # self.non_sv_nodes_np_dict: Dict[str, np.ndarray] = {}
 
         # logs
@@ -247,7 +247,7 @@ class AlgCGARMAPF(AlgGeneric):
             num = obs_agent.num
             start_node = self.nodes_dict[obs_agent.start_node_name]
             goal_node = self.nodes_dict[obs_agent.goal_node_name]
-            new_agent = AlgCGARMAPFAgent(num=num, start_node=start_node, goal_node=goal_node)
+            new_agent = AlgCGARSeqMAPFAgent(num=num, start_node=start_node, goal_node=goal_node)
             self.agents.append(new_agent)
             self.agents_dict[new_agent.name] = new_agent
             self.agents_num_dict[new_agent.num] = new_agent
@@ -341,7 +341,7 @@ class AlgCGARMAPF(AlgGeneric):
                 return False
         return True
 
-    def order_agents(self, init: bool = False, prev_agent: AlgCGARMAPFAgent | None = None, to_assert: bool = False) -> None:
+    def order_agents(self, init: bool = False, prev_agent: AlgCGARSeqMAPFAgent | None = None, to_assert: bool = False) -> None:
         if init:
             self.agents_open_list = deque(self.agents)
         if to_assert:
@@ -360,7 +360,7 @@ class AlgCGARMAPF(AlgGeneric):
             # goal_free_list.sort(key=lambda a: dist_heuristic(prev_agent.curr_node, a.curr_node), reverse=True)
         self.agents_open_list = deque([*goal_free_list, *goal_not_free_list])
 
-    def build_obs(self, main_agent: AlgCGARMAPFAgent, goal_node) -> Dict[str, Any]:
+    def build_obs(self, main_agent: AlgCGARSeqMAPFAgent, goal_node) -> Dict[str, Any]:
         obs: Dict[str, Any] = {}
         goal_nodes_names = []
         for agent in self.agents:
@@ -384,7 +384,7 @@ class AlgCGARMAPF(AlgGeneric):
         obs['main_agent_name'] = main_agent.name
         return obs
 
-    def execute_cgar(self, main_agent: AlgCGARMAPFAgent, goal_node: Node, max_time: int, to_assert: bool = True, to_render: bool = False) -> Dict[str, List[Node]]:
+    def execute_cgar(self, main_agent: AlgCGARSeqMAPFAgent, goal_node: Node, max_time: int, to_assert: bool = True, to_render: bool = False) -> Dict[str, List[Node]]:
         # Execute CGAR(a)
         obs = self.build_obs(main_agent=main_agent, goal_node=goal_node)
         i_alg_cgar = AlgCGAR(env=self.env)
@@ -415,7 +415,7 @@ class AlgCGARMAPF(AlgGeneric):
                     a.prev_node = a.path[-2]
             return
 
-        all_now_moved: List[AlgCGARMAPFAgent] = []
+        all_now_moved: List[AlgCGARSeqMAPFAgent] = []
         for agent in self.agents:
             for n1, n2 in pairwise(paths_dict[agent.name]):
                 if n1 != n2:
@@ -426,7 +426,7 @@ class AlgCGARMAPF(AlgGeneric):
         for m_agent in all_now_moved:
             nodes_names_of_now_moved.extend([n.xy_name for n in paths_dict[m_agent.name]])
 
-        all_prev_moved: List[AlgCGARMAPFAgent] = []
+        all_prev_moved: List[AlgCGARSeqMAPFAgent] = []
         for agent in self.agents:
             for n1, n2 in pairwise(agent.path[-max_new_len - 1:]):
                 if n1 != n2:
@@ -463,7 +463,7 @@ class AlgCGARMAPF(AlgGeneric):
         if to_assert:
             assert len(set([len(a.path) for a in self.agents])) == 1
 
-    def get_nearest_goal_node(self, i_agent: AlgCGARMAPFAgent, blocked_nodes: List[Node] | None = None) -> Node:
+    def get_nearest_goal_node(self, i_agent: AlgCGARSeqMAPFAgent, blocked_nodes: List[Node] | None = None) -> Node:
         curr_nodes_names = self.curr_nodes_names
         open_list: Deque[Node] = deque([i_agent.curr_node])
         open_names_list_heap = [f'{i_agent.curr_node.xy_name}']
@@ -493,7 +493,7 @@ class AlgCGARMAPF(AlgGeneric):
 
 @use_profiler(save_dir='../stats/alg_cgar_mapf.pstat')
 def main():
-    single_mapf_run(AlgCGARMAPF, is_SACGR=False)
+    single_mapf_run(AlgCGARSeqMAPF, is_SACGR=False)
 
 
 if __name__ == '__main__':

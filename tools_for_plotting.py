@@ -215,10 +215,11 @@ def plot_step_in_env(ax, info):
     # a_name = info['i_agent'].name if 'i_agent' in info else 'agent_0'
     img_np = info['img_np']
     agents = info['agents']
-    non_sv_nodes_np = info['non_sv_nodes_np']
+    non_sv_nodes_np = info['non_sv_nodes_np'] if 'non_sv_nodes_np' in info else None
 
     field = img_np * -1
-    field += 0.5 * non_sv_nodes_np * -1
+    if non_sv_nodes_np is not None:
+        field += 0.5 * non_sv_nodes_np * -1
     if 'corridor' in info:
         corridor = info['corridor']
         for n in corridor:

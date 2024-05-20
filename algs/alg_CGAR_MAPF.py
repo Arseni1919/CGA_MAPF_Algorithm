@@ -70,19 +70,12 @@ def get_alter_goal_node[T](
     return alter_goal_node
 
 
-def get_blocked_nodes[T](agents: T, iteration: int, need_to_freeze_main_goal_node: bool = False) -> List[Node]:
+def get_blocked_nodes_for_pibt[T](agents: T, iteration: int, need_to_freeze_main_goal_node: bool = False) -> List[Node]:
     blocked_nodes: List[Node] = []
-    # planned_agents: List[T] = []
     for agent in agents:
-        # assert len(agent.path) - 1 == iteration - 1
         if len(agent.path) - 1 >= iteration:
-            # heapq.heappush(planned_agents, agent)
-            # planned_agents.append(agent)
             for n in agent.path[iteration:]:
-                # heapq.heappush(blocked_nodes, n)
                 blocked_nodes.append(n)
-    # assert len(blocked_nodes_names) == 0
-    # heapq.heapify(blocked_nodes)
     blocked_nodes = list(set(blocked_nodes))
 
     if need_to_freeze_main_goal_node:
@@ -106,7 +99,7 @@ def get_blocked_nodes_for_ev[T](agents: T, iteration: int, need_to_freeze_main_g
     return blocked_nodes
 
 
-class AlgCgaMapfAgent:
+class AlgCgarMapfAgent:
     def __init__(self, num: int, start_node: Node, goal_node: Node, nodes: List[Node], nodes_dict: Dict[str, Node]):
         self.num = num
         self.priority = num
@@ -122,8 +115,7 @@ class AlgCgaMapfAgent:
         self.first_arrived: bool = self.curr_node == self.goal_node
         if self.first_arrived:
             # Tuple: (0) node name, (1) iteration, (2) list of names of agents that will wait for you, (3) the node
-            self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque(
-                [(self.goal_node.xy_name, 0, [], self.goal_node)])
+            self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque([(self.goal_node.xy_name, 0, [], self.goal_node)])
         else:
             self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque()
         self.trash_return_road: Deque[Tuple[str, int, List[Self], Node]] = deque()
@@ -194,15 +186,15 @@ class AlgCgaMapfAgent:
         if self.alt_goal_node is not None and self.curr_node == self.alt_goal_node:
             self.reset_alt_goal_node()
 
-        # if not self.first_arrived and self.curr_node == self.goal_node and len(self.path) - 1 == iteration:
-        #     self.first_arrived = True
-        #     self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque([(self.goal_node.xy_name, iteration, [], self.goal_node)])
-        #     self.waiting_table: Dict[str, List[Tuple[str, int]]] = {n.xy_name: [] for n in self.nodes}
-        #
-        # # for the back-steps
-        # if self.first_arrived:
-        #     if self.curr_node != self.return_road[-1][3]:
-        #         self.return_road.append((self.curr_node.xy_name, iteration, [], self.curr_node))
+        if not self.first_arrived and self.curr_node == self.goal_node and self.priority == 0:
+            self.first_arrived = True
+            self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque([(self.goal_node.xy_name, iteration, [], self.goal_node)])
+            self.waiting_table: Dict[str, List[Tuple[str, int]]] = {n.xy_name: [] for n in self.nodes}
+
+        # for the back-steps
+        if self.first_arrived:
+            if self.curr_node != self.return_road[-1][3]:
+                self.return_road.append((self.curr_node.xy_name, iteration, [], self.curr_node))
 
     def get_goal_node(self) -> Node:
         if self.alt_goal_node is None:
@@ -244,9 +236,9 @@ class AlgCgaMapfAgent:
         assert my_n == n
 
 
-class AlgCgaMapf(AlgGeneric):
+class AlgCgarMapf(AlgGeneric):
 
-    name = 'CGA-MAPF'
+    name = 'CGAR-MAPF'
 
     def __init__(self, env: SimEnvMAPF):
         super().__init__()
@@ -265,9 +257,9 @@ class AlgCgaMapf(AlgGeneric):
         self.h_dict: Dict[str, np.ndarray] = self.env.h_dict
 
         # for the problem
-        self.agents: List[AlgCgaMapfAgent] = []
-        self.agents_dict: Dict[str, AlgCgaMapfAgent] = {}
-        self.agents_num_dict: Dict[int, AlgCgaMapfAgent] = {}
+        self.agents: List[AlgCgarMapfAgent] = []
+        self.agents_dict: Dict[str, AlgCgarMapfAgent] = {}
+        self.agents_num_dict: Dict[int, AlgCgarMapfAgent] = {}
         self.need_to_freeze_main_goal_node: bool = False
         self.n_agents = 0
 
@@ -300,7 +292,7 @@ class AlgCgaMapf(AlgGeneric):
 
     @property
     def n_solved(self) -> int:
-        solved: List[AlgCgaMapfAgent] = [a for a in self.agents if a.goal_node == a.curr_node]
+        solved: List[AlgCgarMapfAgent] = [a for a in self.agents if a.goal_node == a.curr_node]
         return len(solved)
 
     def initialize_problem(self, obs: Dict[str, Any]) -> None:
@@ -313,8 +305,8 @@ class AlgCgaMapf(AlgGeneric):
             num = obs_agent.num
             start_node = self.nodes_dict[obs_agent.start_node_name]
             goal_node = self.nodes_dict[obs_agent.goal_node_name]
-            new_agent = AlgCgaMapfAgent(num=num, start_node=start_node, goal_node=goal_node, nodes=self.nodes,
-                                        nodes_dict=self.nodes_dict)
+            new_agent = AlgCgarMapfAgent(num=num, start_node=start_node, goal_node=goal_node, nodes=self.nodes,
+                                         nodes_dict=self.nodes_dict)
             self.agents.append(new_agent)
             self.agents_dict[new_agent.name] = new_agent
             self.agents_num_dict[new_agent.num] = new_agent
@@ -334,6 +326,7 @@ class AlgCgaMapf(AlgGeneric):
         """
 
         # to render
+        start_time = time.time()
         if to_render:
             plt.close()
             fig, ax = plt.subplots(1, 2, figsize=(14, 7))
@@ -354,8 +347,9 @@ class AlgCgaMapf(AlgGeneric):
                 check_vc_ec_neic_iter(self.agents, iteration)
 
             # print + render
-            print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | {'*' * 20}',
-                  end='')
+            runtime = time.time() - start_time
+            print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} |'
+                  f'runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
             if to_render and iteration >= 0:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[
@@ -391,7 +385,7 @@ class AlgCgaMapf(AlgGeneric):
         config_from: Dict[str, Node] = {}
         config_to: Dict[str, Node] = {}
         goals: Dict[str, Node] = {}
-        node_name_to_agent_dict: Dict[str, AlgCgaMapfAgent] = {}
+        node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent] = {}
         node_name_to_agent_list: List[str] = []
         for agent in self.agents:
             config_from[agent.name] = agent.curr_node
@@ -432,10 +426,8 @@ class AlgCgaMapf(AlgGeneric):
         # ---------------------------------------------------------------------------------------------------------- #
 
     def main_agent_decision(
-            self, main_agent: AlgCgaMapfAgent,
-            config_from: Dict[str, Node], config_to: Dict[str, Node],  goals: Dict[str, Node],
-            node_name_to_agent_dict: Dict[str, AlgCgaMapfAgent], node_name_to_agent_list: List[str],
-            iteration: int, to_assert: bool) -> None:
+            self, main_agent: AlgCgarMapfAgent, config_from: Dict[str, Node], config_to: Dict[str, Node],  goals: Dict[str, Node],
+            node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str], iteration: int, to_assert: bool) -> None:
 
         # decide on the goal
         assert main_agent.priority == 0
@@ -480,7 +472,7 @@ class AlgCgaMapf(AlgGeneric):
         if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
             # calc single PIBT step
             # print(f'\npibt step')
-            blocked_nodes = get_blocked_nodes(self.agents, iteration)
+            blocked_nodes = get_blocked_nodes_for_pibt(self.agents, iteration)
             self.calc_pibt_step(main_agent, given_goal_node, blocked_nodes, config_from, config_to, goals,
                                 node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
         else:
@@ -491,14 +483,12 @@ class AlgCgaMapf(AlgGeneric):
                                iteration, to_assert=to_assert)
 
     def regular_agent_decision(
-            self, agent: AlgCgaMapfAgent,
-            config_from: Dict[str, Node], config_to: Dict[str, Node], goals: Dict[str, Node],
-            node_name_to_agent_dict: Dict[str, AlgCgaMapfAgent], node_name_to_agent_list: List[str],
-            iteration: int, to_assert: bool) -> None:
+            self, agent: AlgCgarMapfAgent, config_from: Dict[str, Node], config_to: Dict[str, Node], goals: Dict[str, Node],
+            node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str], iteration: int, to_assert: bool) -> None:
         # decide on the goal
         given_goal_node = agent.get_goal_node()
         a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-        blocked_nodes = get_blocked_nodes(self.agents, iteration, self.need_to_freeze_main_goal_node)
+        blocked_nodes = get_blocked_nodes_for_pibt(self.agents, iteration, self.need_to_freeze_main_goal_node)
         is_good, message, i_error, info = is_enough_free_locations(
             agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np,
             blocked_nodes)
@@ -517,7 +507,7 @@ class AlgCgaMapf(AlgGeneric):
                                node_name_to_agent_dict, node_name_to_agent_list, a_non_sv_nodes_np,
                                iteration, to_assert=to_assert)
 
-    def calc_pibt_step[T](self, main_agent: AlgCgaMapfAgent, given_goal_node: Node, blocked_nodes: List[Node],
+    def calc_pibt_step[T](self, main_agent: AlgCgarMapfAgent, given_goal_node: Node, blocked_nodes: List[Node],
                           config_from: Dict[str, Node], config_to: Dict[str, Node], goals: Dict[str, Node],
                           node_name_to_agent_dict: Dict[str, T], node_name_to_agent_list: List[str],
                           iteration: int, to_assert: bool = False) -> Dict[str, Node]:
@@ -549,8 +539,8 @@ class AlgCgaMapf(AlgGeneric):
 
         return config_to
 
-    def calc_ep_steps(self, main_agent: AlgCgaMapfAgent, given_goal_node: Node, config_from: Dict[str, Node],
-                      node_name_to_agent_dict: Dict[str, AlgCgaMapfAgent], node_name_to_agent_list: List[str],
+    def calc_ep_steps(self, main_agent: AlgCgarMapfAgent, given_goal_node: Node, config_from: Dict[str, Node],
+                      node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str],
                       a_non_sv_nodes_np: np.ndarray, iteration: int, to_assert: bool = False) -> None:
         """
         - Build corridor
@@ -580,7 +570,7 @@ class AlgCgaMapf(AlgGeneric):
         assert not (corridor[-1] == given_goal_node and corridor[-1].xy_name in node_name_to_agent_dict)
 
         # Find ev-agents
-        ev_agents: List[AlgCgaMapfAgent] = []
+        ev_agents: List[AlgCgarMapfAgent] = []
         for node in corridor[1:]:
             if node.xy_name in node_name_to_agent_list:
                 ev_agent = node_name_to_agent_dict[node.xy_name]
@@ -606,7 +596,7 @@ class AlgCgaMapf(AlgGeneric):
         moved_agents = []
         last_visit_dict = {n.xy_name: 0 for n in self.nodes}
         for i_ev_path, ev_path in enumerate(ev_paths_list):
-            curr_n_name_to_a_dict: Dict[str, AlgCgaMapfAgent] = {a.path[-1].xy_name: a for a in self.agents}
+            curr_n_name_to_a_dict: Dict[str, AlgCgarMapfAgent] = {a.path[-1].xy_name: a for a in self.agents}
             curr_n_name_to_a_list: List[str] = list(curr_n_name_to_a_dict.keys())
             max_len, assigned_agents = push_ev_agents(ev_path, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                                                       moved_agents, self.nodes, main_agent, last_visit_dict,
@@ -619,8 +609,8 @@ class AlgCgaMapf(AlgGeneric):
         # Build the steps in the corridor to the main agent + extend the path
         push_main_agent(main_agent, corridor, moved_agents, iteration)
 
-    def all_execute_forward_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, AlgCgaMapfAgent]:
-        fs_to_a_dict: Dict[str, AlgCgaMapfAgent] = {}
+    def all_execute_forward_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, AlgCgarMapfAgent]:
+        fs_to_a_dict: Dict[str, AlgCgarMapfAgent] = {}
         for agent in self.agents:
             agent.execute_forward_step(iteration)
             fs_to_a_dict[agent.curr_node.xy_name] = agent
@@ -633,14 +623,12 @@ class AlgCgaMapf(AlgGeneric):
 
         return fs_to_a_dict
 
-    def update_priorities(
-            self, fs_to_a_dict: Dict[str, AlgCgaMapfAgent], iteration: int, to_assert: bool = False
-    ) -> None:
+    def update_priorities(self, fs_to_a_dict: Dict[str, AlgCgarMapfAgent], iteration: int, to_assert: bool = False) -> None:
         init_len = len(self.agents)
         prev_first_agent = self.agents[0].num
-        unfinished: List[AlgCgaMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
+        unfinished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
         # random.shuffle(unfinished)
-        finished: List[AlgCgaMapfAgent] = [a for a in self.agents if a.curr_node == a.get_goal_node()]
+        finished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node == a.get_goal_node()]
         random.shuffle(finished)
         self.agents = [*unfinished, *finished]
         for i_priority, agent in enumerate(self.agents):
@@ -651,26 +639,10 @@ class AlgCgaMapf(AlgGeneric):
             self.need_to_freeze_main_goal_node = False
 
 
-        # goal_free_list, not_goal_free_list = [], []
-        # for a in unfinished:
-        #     non_sv_np = self.non_sv_nodes_with_blocked_np[a.get_goal_node().x, a.get_goal_node().y]
-        #     next_corridor = build_corridor_from_nodes(a.curr_node, a.get_goal_node(), self.nodes_dict, self.h_dict, non_sv_np)
-        #     if next_corridor[-1] == a.get_goal_node() and next_corridor[-1].xy_name in fs_to_a_dict:
-        #         not_goal_free_list.append(a)
-        #     else:
-        #         goal_free_list.append(a)
-
-        # alt_goal_agents: List[AlgCgaMapfAgent] = [a for a in unfinished if a.alt_goal_node is not None]
-        # not_alt_goal_agents: List[AlgCgaMapfAgent] = [a for a in unfinished if a.alt_goal_node is None]
-
-        # self.agents = [*alt_goal_agents, *not_alt_goal_agents, *finished]
-        # self.agents = [*goal_free_list, *not_goal_free_list, *finished]
-
-
 @use_profiler(save_dir='../stats/alg_cga_mapf.pstat')
 def main():
     # single_mapf_run(AlgCgaMapf, is_SACGR=True)
-    single_mapf_run(AlgCgaMapf, is_SACGR=False)
+    single_mapf_run(AlgCgarMapf, is_SACGR=False)
 
 
 if __name__ == '__main__':

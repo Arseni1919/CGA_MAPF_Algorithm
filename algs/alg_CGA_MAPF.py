@@ -334,6 +334,7 @@ class AlgCgaMapf(AlgGeneric):
         """
 
         # to render
+        start_time = time.time()
         if to_render:
             plt.close()
             fig, ax = plt.subplots(1, 2, figsize=(14, 7))
@@ -354,8 +355,9 @@ class AlgCgaMapf(AlgGeneric):
                 check_vc_ec_neic_iter(self.agents, iteration)
 
             # print + render
-            print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | {'*' * 20}',
-                  end='')
+            runtime = time.time() - start_time
+            print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} |'
+                  f'runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
             if to_render and iteration >= 0:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[
@@ -633,9 +635,7 @@ class AlgCgaMapf(AlgGeneric):
 
         return fs_to_a_dict
 
-    def update_priorities(
-            self, fs_to_a_dict: Dict[str, AlgCgaMapfAgent], iteration: int, to_assert: bool = False
-    ) -> None:
+    def update_priorities(self, fs_to_a_dict: Dict[str, AlgCgaMapfAgent], iteration: int, to_assert: bool = False) -> None:
         init_len = len(self.agents)
         prev_first_agent = self.agents[0].num
         unfinished: List[AlgCgaMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
