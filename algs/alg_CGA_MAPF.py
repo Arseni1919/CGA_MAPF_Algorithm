@@ -15,8 +15,9 @@ from algs.alg_CGAR_MAPF import is_enough_free_locations
 
 def inner_get_alter_goal_node[T](
         agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
-        non_sv_nodes_with_blocked_np: np.ndarray,
-        blocked_nodes: List[Node], add_to_closed_names: List[str], alt_goal_nodes: List[Node]) -> Node | None:
+        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], add_to_closed_names: List[str],
+        full_corridor_check: bool = False
+) -> Node | None:
     open_list = deque([agent.curr_node])
     closed_list_names = []
     closed_list_names.extend(add_to_closed_names)
@@ -30,9 +31,8 @@ def inner_get_alter_goal_node[T](
         non_sv_in_main: bool = main_goal_non_sv_np[alt_node.x, alt_node.y] == 1
         # not_in_alt_goal_nodes: bool = alt_node not in alt_goal_nodes
         alt_non_sv_np = non_sv_nodes_with_blocked_np[alt_node.x, alt_node.y]
-        alt_is_good, alt_message, i_error, info = is_enough_free_locations(agent.curr_node, alt_node, nodes_dict,
-                                                                           h_dict, curr_nodes,
-                                                                           alt_non_sv_np, blocked_nodes)
+        alt_is_good, alt_message, i_error, info = is_enough_free_locations(
+            agent.curr_node, alt_node, nodes_dict, h_dict, curr_nodes,alt_non_sv_np, blocked_nodes, full_corridor_check)
         # if not_curr_node and non_sv_in_main and not_in_alt_goal_nodes and alt_is_good:
         if not_curr_node and non_sv_in_main and alt_is_good:
             return alt_node
@@ -54,16 +54,17 @@ def inner_get_alter_goal_node[T](
 
 def get_alter_goal_node[T](
         agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
-        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], alt_goal_nodes: List[Node]
+        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], full_corridor_check: bool = False
 ) -> Node | None:
     add_to_closed_names = [agent.goal_node.xy_name]
     alter_goal_node = inner_get_alter_goal_node(
         agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-        add_to_closed_names=add_to_closed_names, alt_goal_nodes=alt_goal_nodes)
+        add_to_closed_names=add_to_closed_names, full_corridor_check=full_corridor_check)
     if alter_goal_node is None:
+        add_to_closed_names = []
         alter_goal_node = inner_get_alter_goal_node(
             agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-            add_to_closed_names=[], alt_goal_nodes=alt_goal_nodes)
+            add_to_closed_names=add_to_closed_names, full_corridor_check=full_corridor_check)
     if alter_goal_node is None:
         return agent.goal_node
     return alter_goal_node
@@ -114,6 +115,7 @@ class AlgCgaMapfAgent:
         self.curr_node: Node = start_node
         self.goal_node: Node = goal_node
         self.alt_goal_node: Node | None = None
+        self.setting_agent_name: str | None = None
         self.nodes = nodes
         self.nodes_dict = nodes_dict
         self.path: List[Node] = [start_node]
@@ -190,7 +192,7 @@ class AlgCgaMapfAgent:
         self.curr_node = self.path[iteration]
         assert self.prev_node.xy_name in self.curr_node.neighbours
         if self.alt_goal_node is not None and self.curr_node == self.alt_goal_node:
-            self.alt_goal_node = None
+            self.reset_alt_goal_node()
 
         # if not self.first_arrived and self.curr_node == self.goal_node and len(self.path) - 1 == iteration:
         #     self.first_arrived = True
@@ -206,6 +208,15 @@ class AlgCgaMapfAgent:
         if self.alt_goal_node is None:
             return self.goal_node
         return self.alt_goal_node
+
+    def reset_alt_goal_node(self, node: Node | None = None, setting_agent: Self | None = None) -> None:
+        if node is not None:
+            assert setting_agent.priority <= self.priority
+            self.alt_goal_node = node
+            self.setting_agent_name = setting_agent.name
+        else:
+            self.alt_goal_node = None
+            self.setting_agent_name = None
 
     def get_wl(self, node: Node, to_assert: bool = False):
         return self.waiting_table[node.xy_name]
@@ -344,7 +355,7 @@ class AlgCgaMapf(AlgGeneric):
             # print + render
             print(f'\r{'*' * 20} | [CGA-MAPF] {iteration=} | solved: {self.n_solved}/{self.n_agents} | {'*' * 20}',
                   end='')
-            if to_render and iteration >= 0:
+            if to_render and iteration >= 310:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[
                     i_agent.get_goal_node().x, i_agent.get_goal_node().y]
@@ -436,30 +447,33 @@ class AlgCgaMapf(AlgGeneric):
         if not is_good:
             # print(f'\n{agent.name}: {message}')
             if i_error in [1, 2]:
-                print(f'\n{i_error=}')
+                print(f'\n{i_error=}, {message}')
                 distur_a = node_name_to_agent_dict[main_agent.get_goal_node().xy_name]
                 if len(distur_a.path) - 1 >= iteration:
                     return
                 if distur_a.alt_goal_node is not None:
-                    self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
-                    return
-                distur_a_alter_goal_node = get_alter_goal_node(distur_a, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes, self.goal_nodes)
-                distur_a.alt_goal_node = distur_a_alter_goal_node
+                    assert distur_a.setting_agent_name == main_agent.name
+                    # self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+                    # return
+                distur_a_alter_goal_node = get_alter_goal_node(distur_a, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes)
+                distur_a.reset_alt_goal_node(distur_a_alter_goal_node, main_agent)
                 self.need_to_freeze_main_goal_node = True
                 goals = {a.name: a.get_goal_node() for a in self.agents}
                 self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
                 return
-            if main_agent.priority == 0 and i_error in [3, 4]:
-                print(f'\n{i_error=}')
+            if i_error in [3, 4]:
+                print(f'\n{i_error=}, {message}')
+                main_agent.path.append(main_agent.path[-1])
                 return
-            if main_agent.priority == 0 and i_error in [5]:
-                print(f'\n{i_error=}')
+            if i_error in [5]:
+                print(f'\n{i_error=}, {message}')
                 a_alter_goal_node = get_alter_goal_node(
                     main_agent, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np,
-                    blocked_nodes, self.goal_nodes)
-                main_agent.alt_goal_node = a_alter_goal_node
-                # given_goal_node = agent.get_goal_node()
-                return
+                    blocked_nodes, full_corridor_check=True)
+                main_agent.reset_alt_goal_node(a_alter_goal_node, main_agent)
+                given_goal_node = main_agent.get_goal_node()
+                a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
+                # return
 
         a_next_node = get_min_h_nei_node(main_agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
         if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
@@ -614,7 +628,7 @@ class AlgCgaMapf(AlgGeneric):
         assert main_agent.priority == 0
         if main_agent.curr_node == main_agent.goal_node:
             for agent in self.agents:
-                agent.alt_goal_node = None
+                agent.reset_alt_goal_node()
 
         return fs_to_a_dict
 
