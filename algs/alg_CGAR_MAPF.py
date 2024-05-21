@@ -1,198 +1,4 @@
-import heapq
-
-import numpy as np
-
-from tools_for_plotting import *
-from tools_for_heuristics import *
-from tools_for_graph_nodes import *
-from single_MAPF_run import single_mapf_run
-from environments.env_MAPF import SimEnvMAPF
-from algs.alg_generic_class import AlgGeneric
-from algs.alg_PIBT import run_i_pibt
-from algs.alg_CGAR import align_all_paths, get_min_h_nei_node
-from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent, execute_backward_road
-from algs.alg_CGAR_Seq_MAPF import is_enough_free_locations
-from algs.alg_CGA_MAPF import get_alter_goal_node
-
-
-def all_reset_return_roads[T](agents: T, iteration: int):
-    for agent in agents:
-        agent.reset_return_road(iteration)
-
-
-def get_blocked_nodes_for_pibt[T](agents: T, iteration: int, need_to_freeze_main_goal_node: bool = False) -> List[Node]:
-    blocked_nodes: List[Node] = []
-    for agent in agents:
-        if len(agent.path) - 1 >= iteration:
-            for n in agent.path[iteration:]:
-                blocked_nodes.append(n)
-    blocked_nodes = list(set(blocked_nodes))
-
-    if need_to_freeze_main_goal_node:
-        main_agent = agents[0]
-        blocked_nodes.append(main_agent.get_goal_node())
-
-    return blocked_nodes
-
-
-def get_blocked_nodes_for_ev[T](agents: T, iteration: int, need_to_freeze_main_goal_node: bool = False) -> List[Node]:
-    blocked_nodes: List[Node] = []
-    for agent in agents:
-        if len(agent.path) - 1 >= iteration:
-            captured_nodes = agent.path[iteration - 1:]
-            blocked_nodes.extend(captured_nodes)
-
-    if need_to_freeze_main_goal_node:
-        main_agent = agents[0]
-        blocked_nodes.append(main_agent.get_goal_node())
-
-    return blocked_nodes
-
-
-class AlgCgarMapfAgent:
-    def __init__(self, num: int, start_node: Node, goal_node: Node, nodes: List[Node], nodes_dict: Dict[str, Node]):
-        self.num = num
-        self.priority = num
-        self.start_node: Node = start_node
-        self.prev_node: Node = start_node
-        self.curr_node: Node = start_node
-        self.goal_node: Node = goal_node
-        self.alt_goal_node: Node | None = None
-        self.setting_agent_name: str | None = None
-        self.nodes = nodes
-        self.nodes_dict = nodes_dict
-        self.path: List[Node] = [start_node]
-        self.first_arrived: bool = self.curr_node == self.goal_node
-        if self.first_arrived:
-            # Tuple: (0) node name, (1) iteration, (2) list of names of agents that will wait for you, (3) the node
-            self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque([(self.goal_node.xy_name, 0, [], self.goal_node)])
-        else:
-            self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque()
-        self.trash_return_road: Deque[Tuple[str, int, List[Self], Node]] = deque()
-        # Dictionary: node.xy_name -> [ ( (0) agent name, (1) iteration ), ...]
-        self.waiting_table: Dict[str, List[Tuple[str, int]]] = {n.xy_name: [] for n in self.nodes}
-
-    @property
-    def name(self):
-        return f'agent_{self.num}'
-
-    @property
-    def path_names(self):
-        return [n.xy_name for n in self.path]
-
-    @property
-    def return_road_names(self):
-        return [(tpl[0], tpl[1], tpl[2]) for tpl in self.return_road]
-
-    @property
-    def return_road_nodes(self):
-        return [tpl[3] for tpl in self.return_road]
-
-    @property
-    def last_path_node_name(self):
-        return self.path[-1].xy_name
-
-    @property
-    def a_curr_node_name(self):
-        return self.curr_node.xy_name
-
-    @property
-    def a_prev_node_name(self):
-        return self.prev_node.xy_name
-
-    @property
-    def a_goal_node_name(self):
-        return self.get_goal_node().xy_name
-
-    @property
-    def a_start_node_name(self):
-        return self.start_node.xy_name
-
-    @property
-    def is_moving(self):
-        return self.curr_node != self.get_goal_node()
-
-    @property
-    def temp_arrived(self):
-        return self.curr_node == self.get_goal_node()
-
-    def __eq__(self, other):
-        return self.num == other.num
-
-    def __lt__(self, other):
-        return self.num < other.num
-
-    def __gt__(self, other):
-        return self.num > other.num
-
-    def __hash__(self):
-        return hash(self.num)
-
-    def execute_forward_step(self, iteration: int) -> None:
-        # execute the step
-        self.prev_node = self.curr_node
-        self.curr_node = self.path[iteration]
-        assert self.prev_node.xy_name in self.curr_node.neighbours
-        if self.alt_goal_node is not None and self.curr_node == self.alt_goal_node:
-            self.reset_alt_goal_node()
-
-        if not self.first_arrived and self.curr_node == self.goal_node and self.priority == 0:
-            self.first_arrived = True
-            self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque([(self.goal_node.xy_name, iteration, [], self.goal_node)])
-            self.waiting_table: Dict[str, List[Tuple[str, int]]] = {n.xy_name: [] for n in self.nodes}
-
-        # for the back-steps
-        if self.first_arrived:
-            if self.curr_node != self.return_road[-1][3]:
-                self.return_road.append((self.curr_node.xy_name, iteration, [], self.curr_node))
-
-    def get_goal_node(self) -> Node:
-        if self.alt_goal_node is None:
-            return self.goal_node
-        return self.alt_goal_node
-
-    def reset_alt_goal_node(self, node: Node | None = None, setting_agent: Self | None = None) -> None:
-        if node is not None:
-            assert setting_agent.priority <= self.priority
-            self.alt_goal_node = node
-            self.setting_agent_name = setting_agent.name
-        else:
-            self.alt_goal_node = None
-            self.setting_agent_name = None
-
-    def reset_return_road(self, iteration):
-        if self.first_arrived:
-            if self.curr_node == self.goal_node:
-                self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque([(self.goal_node.xy_name, iteration, [], self.goal_node)])
-            else:
-                self.first_arrived = False
-                self.return_road: Deque[Tuple[str, int, List[Self], Node]] = deque()
-            self.waiting_table: Dict[str, List[Tuple[str, int]]] = {n.xy_name: [] for n in self.nodes}
-
-    def get_wl(self, node: Node, to_assert: bool = False):
-        return self.waiting_table[node.xy_name]
-
-    def get_wl_names(self, node: Node, to_assert: bool = False):
-        return [tpl[0] for tpl in self.waiting_table[node.xy_name]]
-
-    def add_to_wl(self, node: Node, agent_on_road: Self, iteration: int, to_assert: bool = False):
-        # if to_assert:
-        if (agent_on_road.name, iteration) not in self.waiting_table[node.xy_name]:
-            self.waiting_table[node.xy_name].append((agent_on_road.name, iteration))
-
-    def remove_from_wl(self, node: Node, agent_on_road: Self, iteration: int, to_assert: bool = False):
-        remove_item = (agent_on_road.name, iteration)
-        # assert remove_item in self.waiting_table[node.xy_name]
-        self.waiting_table[node.xy_name] = [i for i in self.waiting_table[node.xy_name] if i != remove_item]
-
-    def add_affected_agent_to_rr(self, affected_agent: Self, iteration: int, n_name: str, n: Node,
-                                 to_assert: bool = False):
-        my_n_name, my_i, my_a_list, my_n = self.return_road[-1]
-        my_a_list.append(affected_agent.name)
-        # if to_assert:
-        assert my_i == iteration
-        assert my_n_name == n_name
-        assert my_n == n
+from algs.alg_CGAR_MAPF_functions import *
 
 
 class AlgCgarMapf(AlgGeneric):
@@ -297,8 +103,8 @@ class AlgCgarMapf(AlgGeneric):
             # current step iteration
             iteration += 1
 
-            self.all_calc_next_steps(iteration, to_assert)
-            fs_to_a_dict = self.all_execute_forward_steps(iteration, to_assert)
+            forward_step_agents, backward_step_agents, other_agents = self.all_calc_next_steps(iteration, to_assert)
+            fs_to_a_dict = self.all_execute_next_steps(forward_step_agents, backward_step_agents, other_agents, iteration, to_assert)
             # self.all_execute_backward_step(iteration, to_assert)
             self.update_priorities(fs_to_a_dict, iteration, to_assert)
 
@@ -311,10 +117,8 @@ class AlgCgarMapf(AlgGeneric):
                   f'runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
             if to_render and iteration >= 0:
                 i_agent = self.agents[0]
-                non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[
-                    i_agent.get_goal_node().x, i_agent.get_goal_node().y]
-                plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent,
-                             'non_sv_nodes_np': non_sv_nodes_np}
+                non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
+                plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, 'non_sv_nodes_np': non_sv_nodes_np}
                 plot_step_in_env(ax[0], plot_info)
                 plot_return_paths(ax[1], plot_info)
                 plt.pause(plot_rate)
@@ -337,7 +141,7 @@ class AlgCgarMapf(AlgGeneric):
                 return False
         return True
 
-    def all_calc_next_steps(self, iteration: int, to_assert: bool = False) -> None:
+    def all_calc_next_steps(self, iteration: int, to_assert: bool = False) -> Tuple[List[AlgCgarMapfAgent], List[AlgCgarMapfAgent], List[AlgCgarMapfAgent]]:
 
         # ---------------------------------------------- Preparations ---------------------------------------------- #
         # build blocked nodes
@@ -357,6 +161,7 @@ class AlgCgarMapf(AlgGeneric):
         # ---------------------------------------------------------------------------------------------------------- #
         # decide the next step or steps
         # ---------------------------------------------------------------------------------------------------------- #
+
         for agent in self.agents:
             # already planned
             if len(agent.path) - 1 >= iteration:
@@ -367,232 +172,63 @@ class AlgCgarMapf(AlgGeneric):
                 continue
 
             if agent.priority == 0:
-                # extends path of the main agent and paths of others
-                self.main_agent_decision(agent, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
 
-            else:
-                self.regular_agent_decision(agent, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+                # ---------------------------------------------------------------------------------------------------- #
+                # Liberate the goal location and freeze
+                # ---------------------------------------------------------------------------------------------------- #
+                goal_location_is_occupied, distur_a = get_goal_location_is_occupied(agent, node_name_to_agent_dict, node_name_to_agent_list)
+                if goal_location_is_occupied:
+                    liberate_goal_location(
+                        agent, distur_a, self.agents, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
+                        self.non_sv_nodes_with_blocked_np, config_from, config_to, node_name_to_agent_dict,
+                        node_name_to_agent_list, need_to_freeze_main_goal_node=False,
+                        iteration=iteration, to_assert=to_assert
+                    )
+                    continue
+                # to wait until the end of distur agent's path?..
+                if not self.need_to_freeze_main_goal_node:
+                    self.need_to_freeze_main_goal_node = True
+                    all_reset_return_roads(self.agents, iteration)
+                main_agent_decision(
+                    agent, self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
+                    config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list,
+                    self.non_sv_nodes_with_blocked_np, iteration, to_assert
+                )
+                continue
 
-            # update blocked nodes + check that there are new nodes added to the list
-            # blocked_nodes = get_blocked_nodes(self.agents, iteration)
+            regular_agent_decision(
+                agent, self.agents, self.nodes, self.nodes_dict, self.h_dict, config_from, config_to, goals,
+                node_name_to_agent_dict, node_name_to_agent_list, [],
+                self.non_sv_nodes_with_blocked_np, self.need_to_freeze_main_goal_node, self.curr_nodes,
+                iteration, to_assert)
 
         # ---------------------------------------------------------------------------------------------------------- #
         # if no decision - just stay
         # ---------------------------------------------------------------------------------------------------------- #
+        other_agents: List[AlgCgarMapfAgent] = []
         for agent in self.agents:
-            if len(agent.path) == iteration:
+            if len(agent.path) - 1 == iteration - 1:
                 agent.path.append(agent.path[-1])
+            # if agent not in forward_step_agents and agent not in backward_step_agents:
+            #     other_agents.append(agent)
         # ---------------------------------------------------------------------------------------------------------- #
         # ---------------------------------------------------------------------------------------------------------- #
+        # return forward_step_agents, backward_step_agents, other_agents
+        return [], [], other_agents
 
-
-    def main_agent_decision(
-            self, main_agent: AlgCgarMapfAgent, config_from: Dict[str, Node], config_to: Dict[str, Node],  goals: Dict[str, Node],
-            node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str], iteration: int, to_assert: bool) -> None:
-
-        assert main_agent.priority == 0
-        given_goal_node = main_agent.get_goal_node()
-        a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-        blocked_nodes = get_blocked_nodes_for_ev(self.agents, iteration)
-
-        # ---------------------------------------------------------------------------------------------------------- #
-        # Liberate the goal location and freeze
-        # ---------------------------------------------------------------------------------------------------------- #
-        if main_agent.get_goal_node().xy_name in node_name_to_agent_list:
-            distur_a = node_name_to_agent_dict[main_agent.get_goal_node().xy_name]
-            if len(distur_a.path) - 1 >= iteration:
-                return
-            if distur_a.alt_goal_node is not None:
-                assert distur_a.setting_agent_name == main_agent.name
-            distur_a_alter_goal_node = get_alter_goal_node(distur_a, self.nodes_dict, self.h_dict, self.curr_nodes,
-                                                           self.non_sv_nodes_with_blocked_np, blocked_nodes)
-            distur_a.reset_alt_goal_node(distur_a_alter_goal_node, main_agent)
-            self.need_to_freeze_main_goal_node = True
-            goals = {a.name: a.get_goal_node() for a in self.agents}
-            self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict,
-                                        node_name_to_agent_list, iteration, to_assert)
-            all_reset_return_roads(self.agents, iteration)
-            return
-
-        # ---------------------------------------------------------------------------------------------------------- #
-        # deal with failures
-        # ---------------------------------------------------------------------------------------------------------- #
-        is_good, message, i_error, info = is_enough_free_locations(
-            main_agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np,
-            blocked_nodes, full_corridor_check=True)
-        if not is_good:
-            # THERE IS AN AGENT IN THE GOAL LOCATION
-            assert i_error not in [1, 2]
-            # THE SEARCH OF THE CORRIDOR IS BLOCKED BY PATHS OF OTHER AGENTS
-            if i_error in [3, 4]:
-                print(f'\n{i_error=}, {message}')
-                main_agent.path.append(main_agent.path[-1])
-                return
-            # THE GOAL IS UNREACHABLE - NEED TO CHANGE START LOCATION
-            if i_error in [5]:
-                print(f'\n{i_error=}, {message}')
-                a_alter_goal_node = get_alter_goal_node(
-                    main_agent, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np,
-                    blocked_nodes, full_corridor_check=True)
-                main_agent.reset_alt_goal_node(a_alter_goal_node, main_agent)
-                given_goal_node = main_agent.get_goal_node()
-                a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-
-        # ---------------------------------------------------------------------------------------------------------- #
-        # EXECUTE THE FORWARD STEP
-        # ---------------------------------------------------------------------------------------------------------- #
-        a_next_node = get_min_h_nei_node(main_agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
-        if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
-            # calc single PIBT step
-            blocked_nodes = get_blocked_nodes_for_pibt(self.agents, iteration)
-            self.calc_pibt_step(main_agent, given_goal_node, blocked_nodes, config_from, config_to, goals,
-                                node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
-        else:
-            # calc evacuation of agents from the corridor
-            self.calc_ep_steps(main_agent, given_goal_node, config_from,
-                               node_name_to_agent_dict, node_name_to_agent_list, a_non_sv_nodes_np,
-                               iteration, to_assert=to_assert)
-        # ---------------------------------------------------------------------------------------------------------- #
-        # EXECUTE THE BACKWARD STEP
-        # ---------------------------------------------------------------------------------------------------------- #
-        execute_backward_road(
-            node_name_to_agent_dict, backward_step_agents, future_captured_node_names, fs_to_a_dict, to_config,
-            self.agents, self.agents_dict, iteration, to_assert=to_assert
-        )
-        return
-
-    def regular_agent_decision(
-            self, agent: AlgCgarMapfAgent, config_from: Dict[str, Node], config_to: Dict[str, Node], goals: Dict[str, Node],
-            node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str], iteration: int, to_assert: bool) -> None:
-        # decide on the goal
-        given_goal_node = agent.get_goal_node()
-        a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-        blocked_nodes = get_blocked_nodes_for_pibt(self.agents, iteration, self.need_to_freeze_main_goal_node)
-        is_good, message, i_error, info = is_enough_free_locations(
-            agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np,
-            blocked_nodes)
-        if not is_good:
-            return
-
-        a_next_node = get_min_h_nei_node(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
-        if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
-            # calc single PIBT step
-            # blocked_nodes = get_blocked_nodes(self.agents, iteration, self.need_to_freeze_main_goal_node)
-            self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, config_to, goals,
-                                node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
-        else:
-            # calc evacuation of agents from the corridor
-            self.calc_ep_steps(agent, given_goal_node, config_from,
-                               node_name_to_agent_dict, node_name_to_agent_list, a_non_sv_nodes_np,
-                               iteration, to_assert=to_assert)
-
-    def calc_pibt_step[T](self, main_agent: AlgCgarMapfAgent, given_goal_node: Node, blocked_nodes: List[Node],
-                          config_from: Dict[str, Node], config_to: Dict[str, Node], goals: Dict[str, Node],
-                          node_name_to_agent_dict: Dict[str, T], node_name_to_agent_list: List[str],
-                          iteration: int, to_assert: bool = False) -> Dict[str, Node]:
-        # print(f'\n --- inside calc_pibt_step {iteration} --- ')
-        assert len(main_agent.path) == iteration
-
-        # Preps
-        # config_to = {}
-        for agent in self.agents:
-            if agent.name not in config_to and len(agent.path) - 1 >= iteration:
-                config_to[agent.name] = agent.path[iteration]
-        if to_assert:
-            assert len(set(config_to.values())) == len(set(config_to.keys()))
-
-        # Calc PIBT
-        curr_blocked_nodes = blocked_nodes[:]
-        curr_blocked_nodes.append(given_goal_node)
-        config_to = run_i_pibt(
-            main_agent=main_agent, agents=self.agents, nodes_dict=self.nodes_dict, h_dict=self.h_dict,
-            config_from=config_from, config_to=config_to, goals=goals,
-            node_name_to_agent_dict=node_name_to_agent_dict, node_name_to_agent_list=node_name_to_agent_list,
-            blocked_nodes=curr_blocked_nodes, given_goal_node=given_goal_node)
-
-        # Update paths
-        for agent in self.agents:
-            if len(agent.path) == iteration and agent.name in config_to:
-                next_node = config_to[agent.name]
-                agent.path.append(next_node)
-
-        return config_to
-
-    def calc_ep_steps(self, main_agent: AlgCgarMapfAgent, given_goal_node: Node, config_from: Dict[str, Node],
-                      node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str],
-                      a_non_sv_nodes_np: np.ndarray, iteration: int, to_assert: bool = False) -> None:
-        """
-        - Build corridor
-        - Build EP for ev-agents in the corridor
-        - Evacuate ev-agents
-        - Build the steps in the corridor to the main agent
-        """
-        assert len(main_agent.path) == iteration
-
-        # Preps
-        if main_agent.priority == 0:
-            blocked_nodes = get_blocked_nodes_for_ev(self.agents, iteration)
-            # assert main_agent.get_goal_node() not in blocked_nodes
-        else:
-            blocked_nodes = get_blocked_nodes_for_ev(self.agents, iteration, self.need_to_freeze_main_goal_node)
-        blocked_nodes_names: List[str] = [n.xy_name for n in blocked_nodes]
-        # Calc
-        corridor: List[Node] = build_corridor(main_agent, self.nodes_dict, self.h_dict, a_non_sv_nodes_np,
-                                              given_goal_node=given_goal_node)
-        corridor_names: List[str] = [n.xy_name for n in corridor]
-        assert corridor[0] == main_agent.path[-1]
-
-        # if any of the corridor's nodes is blocked - just return
-        if len([n for n in corridor[1:] if n in blocked_nodes]) > 0:
-            return
-
-        assert not (corridor[-1] == given_goal_node and corridor[-1].xy_name in node_name_to_agent_dict)
-
-        # Find ev-agents
-        ev_agents: List[AlgCgarMapfAgent] = []
-        for node in corridor[1:]:
-            if node.xy_name in node_name_to_agent_list:
-                ev_agent = node_name_to_agent_dict[node.xy_name]
-                assert ev_agent != main_agent
-                ev_agents.append(ev_agent)
-
-        # Build ev-paths (evacuation paths) for ev-agents in the corridor
-        ev_paths_list: List[List[Node]] = []
-        captured_free_nodes: List[Node] = []
-        blocked_nodes.extend([main_agent.curr_node, given_goal_node])
-        blocked_nodes = list(set(blocked_nodes))
-        for ev_agent in ev_agents:
-            ev_path, captured_free_node = find_ev_path(
-                ev_agent.curr_node, corridor, self.nodes_dict, blocked_nodes, captured_free_nodes,
-                node_name_to_agent_dict, node_name_to_agent_list
-            )
-            if ev_path is None:
-                return
-            captured_free_nodes.append(captured_free_node)
-            ev_paths_list.append(ev_path)
-
-        # Build steps for the ev-agents inside the ev-paths + extend paths
-        moved_agents = []
-        last_visit_dict = {n.xy_name: 0 for n in self.nodes}
-        for i_ev_path, ev_path in enumerate(ev_paths_list):
-            curr_n_name_to_a_dict: Dict[str, AlgCgarMapfAgent] = {a.path[-1].xy_name: a for a in self.agents}
-            curr_n_name_to_a_list: List[str] = list(curr_n_name_to_a_dict.keys())
-            max_len, assigned_agents = push_ev_agents(ev_path, curr_n_name_to_a_dict, curr_n_name_to_a_list,
-                                                      moved_agents, self.nodes, main_agent, last_visit_dict,
-                                                      iteration)
-            assert main_agent not in assigned_agents
-            # extend_other_paths(max_len, self.main_agent, self.agents)
-            moved_agents.extend(assigned_agents)
-            moved_agents = list(set(moved_agents))
-
-        # Build the steps in the corridor to the main agent + extend the path
-        push_main_agent(main_agent, corridor, moved_agents, iteration)
-
-    def all_execute_forward_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, AlgCgarMapfAgent]:
+    def all_execute_next_steps(self, forward_step_agents, backward_step_agents, other_agents, iteration: int, to_assert: bool = False) -> Dict[str, AlgCgarMapfAgent]:
         fs_to_a_dict: Dict[str, AlgCgarMapfAgent] = {}
         for agent in self.agents:
             agent.execute_forward_step(iteration)
             fs_to_a_dict[agent.curr_node.xy_name] = agent
+
+        # fs_to_a_dict: Dict[str, AlgCgarMapfAgent] = {}
+        # for agent in forward_step_agents:
+        #     agent.execute_forward_step(iteration)
+        #     fs_to_a_dict[agent.curr_node.xy_name] = agent
+        # for agent in [*backward_step_agents, *other_agents]:
+        #     agent.execute_simple_step(iteration)
+        #     fs_to_a_dict[agent.curr_node.xy_name] = agent
 
         main_agent = self.agents[0]
         assert main_agent.priority == 0
