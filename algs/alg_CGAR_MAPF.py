@@ -156,68 +156,47 @@ class AlgCgarMapf(AlgGeneric):
             heapq.heappush(node_name_to_agent_list, agent.curr_node.xy_name)
         # node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
         # heapq.heapify(node_name_to_agent_list)
+        # ---------------------------------------------------------------------------------------------------------- #
         return config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list
 
     def all_calc_next_steps(self, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration: int, to_assert: bool = False) -> Tuple[List[AlgCgarMapfAgent], List[AlgCgarMapfAgent], List[AlgCgarMapfAgent]]:
-
-        # ---------------------------------------------- Preparations ---------------------------------------------- #
-        # build blocked nodes
-        # config_from: Dict[str, Node] = {}
-        # config_to: Dict[str, Node] = {}
-        # goals: Dict[str, Node] = {}
-        # node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent] = {}
-        # node_name_to_agent_list: List[str] = []
-        # for agent in self.agents:
-        #     config_from[agent.name] = agent.curr_node
-        #     goals[agent.name] = agent.get_goal_node()
-        #     node_name_to_agent_dict[agent.curr_node.xy_name] = agent
-        #     heapq.heappush(node_name_to_agent_list, agent.curr_node.xy_name)
-        # node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
-        # heapq.heapify(node_name_to_agent_list)
-
         # ---------------------------------------------------------------------------------------------------------- #
-        # decide the next step or steps
+        # assertions
         # ---------------------------------------------------------------------------------------------------------- #
-        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(self.agents[0], node_name_to_agent_dict,
-                                                                            node_name_to_agent_list)
+        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(self.agents[0], node_name_to_agent_dict, node_name_to_agent_list)
         assert not goal_location_is_occupied
-        for agent in self.agents:
+        # ---------------------------------------------------------------------------------------------------------- #
+        # decide for the main agent
+        # ---------------------------------------------------------------------------------------------------------- #
+        main_agent = self.agents[0]
+        has_a_plan = len(main_agent.path) - 1 >= iteration  # already planned
+        on_its_goal = main_agent.curr_node == main_agent.get_goal_node()  # already at its goal
+        if not has_a_plan and not on_its_goal:
+            if not self.need_to_freeze_main_goal_node:
+                self.need_to_freeze_main_goal_node = True
+                all_reset_return_roads(self.agents, iteration)
+            main_agent_decision(
+                main_agent, self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
+                config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list,
+                self.non_sv_nodes_with_blocked_np, iteration, to_assert
+            )
+
+        # ---------------------------------------------------------------------------------------------------------- #
+        # plan for backstep agents
+        # ---------------------------------------------------------------------------------------------------------- #
+        # TODO: return agents
+        pass
+
+        # ---------------------------------------------------------------------------------------------------------- #
+        # to plan for rest of the agents
+        # ---------------------------------------------------------------------------------------------------------- #
+        for agent in self.agents[1:]:
             # already planned
             if len(agent.path) - 1 >= iteration:
                 continue
             # already at its goal
             if agent.curr_node == agent.get_goal_node():
                 # if agent.curr_node == agent.goal_node:
-                continue
-
-            if agent.priority == 0:
-
-                # ---------------------------------------------------------------------------------------------------- #
-                # Liberate the goal location and freeze
-                # ---------------------------------------------------------------------------------------------------- #
-                # goal_location_is_occupied, distur_a = get_goal_location_is_occupied(agent, node_name_to_agent_dict,
-                #                                                                     node_name_to_agent_list)
-                # assert not goal_location_is_occupied
-                # if goal_location_is_occupied:
-                #     liberate_goal_location(
-                #         agent, distur_a, self.agents, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
-                #         self.non_sv_nodes_with_blocked_np, config_from, config_to, node_name_to_agent_dict,
-                #         node_name_to_agent_list, need_to_freeze_main_goal_node=False,
-                #         iteration=iteration, to_assert=to_assert
-                #     )
-                #     # TODO: freeze arrived nodes
-                #     continue
-                # to wait until the end of distur agent's path?..
-                if not self.need_to_freeze_main_goal_node:
-                    self.need_to_freeze_main_goal_node = True
-                    all_reset_return_roads(self.agents, iteration)
-                main_agent_decision(
-                    agent, self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
-                    config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list,
-                    self.non_sv_nodes_with_blocked_np, iteration, to_assert
-                )
-                # TODO: try to return agents
-                # TODO: freeze arrived nodes
                 continue
             regular_agent_decision(
                 agent, self.agents, self.nodes, self.nodes_dict, self.h_dict, config_from, config_to, goals,
@@ -228,16 +207,14 @@ class AlgCgarMapf(AlgGeneric):
         # ---------------------------------------------------------------------------------------------------------- #
         # if no decision - just stay
         # ---------------------------------------------------------------------------------------------------------- #
-        other_agents: List[AlgCgarMapfAgent] = []
         for agent in self.agents:
+            # assert len(agent.path) - 1 >= iteration
             if len(agent.path) - 1 == iteration - 1:
                 agent.path.append(agent.path[-1])
-            # if agent not in forward_step_agents and agent not in backward_step_agents:
-            #     other_agents.append(agent)
         # ---------------------------------------------------------------------------------------------------------- #
         # ---------------------------------------------------------------------------------------------------------- #
         # return forward_step_agents, backward_step_agents, other_agents
-        return [], [], other_agents
+        return [], [], []
 
     def all_execute_next_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, AlgCgarMapfAgent]:
         fs_to_a_dict: Dict[str, AlgCgarMapfAgent] = {}
@@ -397,3 +374,21 @@ if __name__ == '__main__':
 #                 heapq.heappush(blocked_nodes, n)
 #     # assert len(blocked_nodes_names) == 0
 #     return blocked_nodes, planned_agents
+
+
+# ---------------------------------------------------------------------------------------------------- #
+# Liberate the goal location and freeze
+# ---------------------------------------------------------------------------------------------------- #
+# goal_location_is_occupied, distur_a = get_goal_location_is_occupied(agent, node_name_to_agent_dict,
+#                                                                     node_name_to_agent_list)
+# assert not goal_location_is_occupied
+# if goal_location_is_occupied:
+#     liberate_goal_location(
+#         agent, distur_a, self.agents, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
+#         self.non_sv_nodes_with_blocked_np, config_from, config_to, node_name_to_agent_dict,
+#         node_name_to_agent_list, need_to_freeze_main_goal_node=False,
+#         iteration=iteration, to_assert=to_assert
+#     )
+#     # TODO: freeze arrived nodes
+#     continue
+# to wait until the end of distur agent's path?..
