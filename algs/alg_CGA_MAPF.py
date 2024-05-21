@@ -32,7 +32,7 @@ def inner_get_alter_goal_node[T](
         # not_in_alt_goal_nodes: bool = alt_node not in alt_goal_nodes
         alt_non_sv_np = non_sv_nodes_with_blocked_np[alt_node.x, alt_node.y]
         alt_is_good, alt_message, i_error, info = is_enough_free_locations(
-            agent.curr_node, alt_node, nodes_dict, h_dict, curr_nodes,alt_non_sv_np, blocked_nodes, full_corridor_check)
+            agent.curr_node, alt_node, nodes_dict, h_dict, curr_nodes, alt_non_sv_np, blocked_nodes, full_corridor_check)
         # if not_curr_node and non_sv_in_main and not_in_alt_goal_nodes and alt_is_good:
         if not_curr_node and non_sv_in_main and alt_is_good:
             return alt_node

@@ -59,14 +59,6 @@ def is_enough_free_locations(
             'closest_corridor': [n.xy_name for n in closest_corridor]
         }
 
-    # while next_node != goal_node:
-    #     if next_node in other_curr_nodes:
-    #         max_required_free_nodes += 1
-    #     next_node = get_min_h_nei_node(next_node, goal_node, nodes_dict, h_dict)
-    #     full_path.append(next_node)
-    # if max_required_free_nodes == 0:
-    #     return True, f'OK - {max_required_free_nodes=}', 0
-
     # count available free locations
     free_count = 0
     touched_blocked_nodes = False

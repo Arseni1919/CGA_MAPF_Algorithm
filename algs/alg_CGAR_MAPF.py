@@ -103,8 +103,8 @@ class AlgCgarMapf(AlgGeneric):
             # current step iteration
             iteration += 1
 
-            forward_step_agents, backward_step_agents, other_agents = self.all_calc_next_steps(iteration, to_assert)
-            fs_to_a_dict = self.all_execute_next_steps(forward_step_agents, backward_step_agents, other_agents, iteration, to_assert)
+            self.all_calc_next_steps(iteration, to_assert)
+            fs_to_a_dict = self.all_execute_next_steps(iteration, to_assert)
             # self.all_execute_backward_step(iteration, to_assert)
             self.update_priorities(fs_to_a_dict, iteration, to_assert)
 
@@ -216,7 +216,7 @@ class AlgCgarMapf(AlgGeneric):
         # return forward_step_agents, backward_step_agents, other_agents
         return [], [], other_agents
 
-    def all_execute_next_steps(self, forward_step_agents, backward_step_agents, other_agents, iteration: int, to_assert: bool = False) -> Dict[str, AlgCgarMapfAgent]:
+    def all_execute_next_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, AlgCgarMapfAgent]:
         fs_to_a_dict: Dict[str, AlgCgarMapfAgent] = {}
         for agent in self.agents:
             agent.execute_forward_step(iteration)
@@ -236,6 +236,9 @@ class AlgCgarMapf(AlgGeneric):
             for agent in self.agents:
                 agent.reset_alt_goal_node()
 
+        for a in self.agents:
+            assert len(a.path) - 1 >= iteration
+            assert a.path[iteration] == a.curr_node
         return fs_to_a_dict
 
     def update_priorities(self, fs_to_a_dict: Dict[str, AlgCgarMapfAgent], iteration: int, to_assert: bool = False) -> None:

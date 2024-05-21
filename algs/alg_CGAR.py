@@ -440,6 +440,10 @@ class AlgCGAR(AlgGeneric):
         return [a.start_node.xy_name for a in self.agents]
 
     @property
+    def curr_nodes(self):
+        return [a.curr_node for a in self.agents]
+
+    @property
     def goal_nodes(self):
         return [a.goal_node for a in self.agents]
 
@@ -478,7 +482,12 @@ class AlgCGAR(AlgGeneric):
         if self.non_sv_nodes_np[self.main_agent.curr_node.x, self.main_agent.curr_node.y]:
             return True, 'good'
         # if there are enough free locations to allow the main agent to pass
-        return True, 'good'
+        is_good, message, i_error, info = is_enough_free_locations_cgar(
+            self.main_agent.curr_node, self.main_agent.goal_node, self.nodes_dict, self.h_dict, self.curr_nodes,
+            self.non_sv_nodes_np, [], full_corridor_check=True)
+        if not is_good:
+            return False, message
+        return True, message
 
     def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
@@ -496,6 +505,12 @@ class AlgCGAR(AlgGeneric):
             - execute backward step
         - return
         """
+        # is_good, message, i_error, info = is_enough_free_locations(
+        #     self.main_agent.curr_node, self.main_agent.goal_node, self.nodes_dict, self.h_dict, self.curr_nodes,
+        #     self.non_sv_nodes_np, [], full_corridor_check=True)
+        # if not is_good:
+        #     return False, {}
+
         if to_assert:
             set_lens = set([len(a.path) for a in self.agents])
             assert len(set_lens) == 1
@@ -648,6 +663,112 @@ class AlgCGAR(AlgGeneric):
             if agent.path[-1] != agent.goal_node:
                 return False
         return True
+
+
+def is_enough_free_locations_cgar(
+        curr_node: Node,
+        goal_node: Node,
+        nodes_dict: Dict[str, Node],
+        h_dict: Dict[str, np.ndarray],
+        other_curr_nodes: List[Node],
+        non_sv_nodes_np: np.ndarray,
+        blocked_nodes: List[Node] | None = None,
+        full_corridor_check: bool = False
+) -> Tuple[bool, str, int, dict]:
+    next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
+    full_path: List[Node] = [next_node]
+    open_list: List[Node] = [next_node]
+    open_list_names: List[str] = [next_node.xy_name]
+    closed_list: List[Node] = [curr_node, goal_node]
+    closed_list_names: List[str] = [n.xy_name for n in closed_list]
+    heapq.heapify(closed_list_names)
+    if blocked_nodes is None:
+        blocked_nodes = []
+    blocked_nodes_names = [n.xy_name for n in blocked_nodes]
+    heapq.heapify(blocked_nodes_names)
+
+    if next_node == goal_node:
+        if next_node not in other_curr_nodes:
+            return True, f'OK - next_node {next_node.xy_name} is a goal node and it is free', 0, {}
+        return False, f'FAILED - next node {next_node.xy_name} is a goal node and is occupied', 1, {}
+
+    closest_corridor: List[Node] = build_corridor_from_nodes(curr_node, goal_node, nodes_dict, h_dict, non_sv_nodes_np)
+    if closest_corridor[-1] == goal_node and closest_corridor[-1] in other_curr_nodes:
+        return False, f'FAILED - last corridor node {goal_node.xy_name} is a goal node and is occupied', 2, {
+            'closest_corridor': [n.xy_name for n in closest_corridor]
+        }
+
+    if full_corridor_check:
+        corridor_blocked_list = list(set(closest_corridor).intersection(blocked_nodes))
+        if len(corridor_blocked_list) > 0:
+            return False, f'FAILED - part of the corridor is blocked: {[n.xy_name for n in corridor_blocked_list]}', 3, {
+                'closest_corridor': [n.xy_name for n in closest_corridor],
+                'corridor_blocked_list': [n.xy_name for n in corridor_blocked_list]
+            }
+
+    # calc maximum required free nodes
+    max_required_free_nodes = 0
+    assert closest_corridor[0] == curr_node
+    for n in closest_corridor[1:]:
+        if n in other_curr_nodes:
+            max_required_free_nodes += 1
+    if max_required_free_nodes == 0:
+        return True, f'OK - {max_required_free_nodes=}', 0, {
+            'closest_corridor': [n.xy_name for n in closest_corridor]
+        }
+
+    # count available free locations
+    free_count = 0
+    touched_blocked_nodes = False
+    touched_blocked_nodes_list: List[Node] = []
+    while len(open_list) > 0:
+        next_node = open_list.pop()
+        open_list_names.remove(next_node.xy_name)
+        # is_sv: bool = non_sv_nodes_np[next_node.x, next_node.y] == 0
+        next_node_out_of_full_path = next_node not in full_path
+        next_node_is_not_occupied = next_node not in other_curr_nodes
+        if next_node_out_of_full_path and next_node_is_not_occupied:
+            free_count += 1
+            if free_count >= max_required_free_nodes:
+                return True, f'OK - {free_count} free locations for {max_required_free_nodes=}', 0, {
+                    'closest_corridor': [n.xy_name for n in closest_corridor],
+                    'max_required_free_nodes': max_required_free_nodes,
+                    'free_count': free_count,
+                    'blocked_nodes': blocked_nodes,
+                    'open_list_names': open_list_names,
+                    'closed_list_names': closed_list_names,
+                    'blocked_nodes_names': blocked_nodes_names,
+                    'touched_blocked_nodes': touched_blocked_nodes,
+                    'touched_blocked_nodes_list': touched_blocked_nodes_list
+                }
+        for nei_name in next_node.neighbours:
+            if nei_name == next_node.xy_name:
+                continue
+            if nei_name in closed_list_names:
+                continue
+            if nei_name in open_list_names:
+                continue
+            if nei_name in blocked_nodes_names:
+                touched_blocked_nodes = True
+                touched_blocked_nodes_list.append(nei_name)
+                continue
+            nei_node = nodes_dict[nei_name]
+            open_list.append(nei_node)
+            heapq.heappush(open_list_names, nei_name)
+        heapq.heappush(closed_list_names, next_node.xy_name)
+
+    error_num = 4 if touched_blocked_nodes else 5
+    return False, 'FAILED - not_enough_free_nodes', error_num, {
+        'closest_corridor': [n.xy_name for n in closest_corridor],
+        'max_required_free_nodes': max_required_free_nodes,
+        'free_count': free_count,
+        'blocked_nodes': blocked_nodes,
+        'open_list_names': open_list_names,
+        'closed_list_names': closed_list_names,
+        'blocked_nodes_names': blocked_nodes_names,
+        'touched_blocked_nodes': touched_blocked_nodes,
+        'touched_blocked_nodes_list': touched_blocked_nodes_list
+    }
 
 
 @use_profiler(save_dir='../stats/alg_cgar.pstat')
