@@ -583,6 +583,45 @@ def main_agent_decision(
     return [], []
 
 
+def update_priority_numbers(agents: List[AlgCgarMapfAgent]):
+    for i_priority, agent in enumerate(agents):
+        agent.priority = i_priority
+
+
+def reset_the_first_agent(
+        agents: List[AlgCgarMapfAgent],
+        nodes_dict: Dict[str, Node],
+        h_dict: dict,
+        curr_nodes: List[Node],
+        goals: List[Node],
+        node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent],
+        node_name_to_agent_list: List[str],
+        non_sv_nodes_with_blocked_np: np.ndarray,
+        iteration: int) -> List[AlgCgarMapfAgent]:
+    # ---------------------------------------------------------------------------------------------------- #
+    # Liberate the goal location and freeze
+    # ---------------------------------------------------------------------------------------------------- #
+    main_agent = agents[0]
+    # if main_agent
+    goal_location_is_occupied, distur_a = get_goal_location_is_occupied(main_agent, node_name_to_agent_dict,
+                                                                        node_name_to_agent_list)
+    if goal_location_is_occupied:
+        # blocked_nodes = get_blocked_nodes_for_ev(agents, iteration)
+        blocked_nodes = []
+        goals_list = [a.get_goal_node() for a in agents if a != distur_a]
+        distur_a_alter_goal_node = get_alter_goal_node(
+            distur_a, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
+            full_corridor_check=True, avoid_curr_nodes=True, goals=goals_list, avoid_goals=True
+        )
+        distur_a.reset_alt_goal_node(distur_a_alter_goal_node, main_agent)
+        agents = deque(agents)
+        agents.remove(distur_a)
+        agents.appendleft(distur_a)
+        agents = list(agents)
+        assert agents[0].get_goal_node().xy_name not in node_name_to_agent_list
+        return agents
+    return agents
+
 
 
 

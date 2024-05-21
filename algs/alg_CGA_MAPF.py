@@ -16,7 +16,8 @@ from algs.alg_CGAR_Seq_MAPF import is_enough_free_locations
 def inner_get_alter_goal_node[T](
         agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
         non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], add_to_closed_names: List[str],
-        full_corridor_check: bool = False
+        full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
+        goals: List[Node] | None = None, avoid_goals: bool = False
 ) -> Node | None:
     open_list = deque([agent.curr_node])
     closed_list_names = []
@@ -34,7 +35,13 @@ def inner_get_alter_goal_node[T](
         alt_is_good, alt_message, i_error, info = is_enough_free_locations(
             agent.curr_node, alt_node, nodes_dict, h_dict, curr_nodes, alt_non_sv_np, blocked_nodes, full_corridor_check)
         # if not_curr_node and non_sv_in_main and not_in_alt_goal_nodes and alt_is_good:
-        if not_curr_node and non_sv_in_main and alt_is_good:
+        not_in_curr_nodes = True
+        if avoid_curr_nodes:
+            not_in_curr_nodes = alt_node not in curr_nodes
+        not_in_goal_nodes = True
+        if avoid_goals:
+            not_in_goal_nodes = alt_node not in goals
+        if not_curr_node and non_sv_in_main and alt_is_good and not_in_curr_nodes and not_in_goal_nodes:
             return alt_node
 
         for nn in alt_node.neighbours:
@@ -54,17 +61,25 @@ def inner_get_alter_goal_node[T](
 
 def get_alter_goal_node[T](
         agent: T, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
-        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], full_corridor_check: bool = False
+        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node],
+        full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
+        goals: List[Node] | None = None, avoid_goals: bool = False
 ) -> Node | None:
     add_to_closed_names = [agent.goal_node.xy_name]
     alter_goal_node = inner_get_alter_goal_node(
         agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-        add_to_closed_names=add_to_closed_names, full_corridor_check=full_corridor_check)
+        add_to_closed_names=add_to_closed_names,
+        full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
+        goals=goals, avoid_goals=avoid_goals
+    )
     if alter_goal_node is None:
         add_to_closed_names = []
         alter_goal_node = inner_get_alter_goal_node(
             agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-            add_to_closed_names=add_to_closed_names, full_corridor_check=full_corridor_check)
+            add_to_closed_names=add_to_closed_names,
+            full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
+            goals=goals, avoid_goals=avoid_goals
+        )
     if alter_goal_node is None:
         return agent.goal_node
     return alter_goal_node

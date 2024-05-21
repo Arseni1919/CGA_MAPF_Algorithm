@@ -102,11 +102,11 @@ class AlgCgarMapf(AlgGeneric):
         while not self.stop_condition():
             # current step iteration
             iteration += 1
-
-            self.all_calc_next_steps(iteration, to_assert)
+            config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list = self.get_preparations()
+            self.update_priorities(goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+            self.all_calc_next_steps(config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
             fs_to_a_dict = self.all_execute_next_steps(iteration, to_assert)
             # self.all_execute_backward_step(iteration, to_assert)
-            self.update_priorities(fs_to_a_dict, iteration, to_assert)
 
             if to_assert:
                 check_vc_ec_neic_iter(self.agents, iteration)
@@ -115,7 +115,7 @@ class AlgCgarMapf(AlgGeneric):
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} |'
                   f'runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
-            if to_render and iteration >= 0:
+            if to_render and iteration >= 200:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
                 plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, 'non_sv_nodes_np': non_sv_nodes_np}
@@ -141,8 +141,7 @@ class AlgCgarMapf(AlgGeneric):
                 return False
         return True
 
-    def all_calc_next_steps(self, iteration: int, to_assert: bool = False) -> Tuple[List[AlgCgarMapfAgent], List[AlgCgarMapfAgent], List[AlgCgarMapfAgent]]:
-
+    def get_preparations(self):
         # ---------------------------------------------- Preparations ---------------------------------------------- #
         # build blocked nodes
         config_from: Dict[str, Node] = {}
@@ -157,11 +156,31 @@ class AlgCgarMapf(AlgGeneric):
             heapq.heappush(node_name_to_agent_list, agent.curr_node.xy_name)
         # node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
         # heapq.heapify(node_name_to_agent_list)
+        return config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list
+
+    def all_calc_next_steps(self, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration: int, to_assert: bool = False) -> Tuple[List[AlgCgarMapfAgent], List[AlgCgarMapfAgent], List[AlgCgarMapfAgent]]:
+
+        # ---------------------------------------------- Preparations ---------------------------------------------- #
+        # build blocked nodes
+        # config_from: Dict[str, Node] = {}
+        # config_to: Dict[str, Node] = {}
+        # goals: Dict[str, Node] = {}
+        # node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent] = {}
+        # node_name_to_agent_list: List[str] = []
+        # for agent in self.agents:
+        #     config_from[agent.name] = agent.curr_node
+        #     goals[agent.name] = agent.get_goal_node()
+        #     node_name_to_agent_dict[agent.curr_node.xy_name] = agent
+        #     heapq.heappush(node_name_to_agent_list, agent.curr_node.xy_name)
+        # node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
+        # heapq.heapify(node_name_to_agent_list)
 
         # ---------------------------------------------------------------------------------------------------------- #
         # decide the next step or steps
         # ---------------------------------------------------------------------------------------------------------- #
-
+        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(self.agents[0], node_name_to_agent_dict,
+                                                                            node_name_to_agent_list)
+        assert not goal_location_is_occupied
         for agent in self.agents:
             # already planned
             if len(agent.path) - 1 >= iteration:
@@ -176,15 +195,18 @@ class AlgCgarMapf(AlgGeneric):
                 # ---------------------------------------------------------------------------------------------------- #
                 # Liberate the goal location and freeze
                 # ---------------------------------------------------------------------------------------------------- #
-                goal_location_is_occupied, distur_a = get_goal_location_is_occupied(agent, node_name_to_agent_dict, node_name_to_agent_list)
-                if goal_location_is_occupied:
-                    liberate_goal_location(
-                        agent, distur_a, self.agents, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
-                        self.non_sv_nodes_with_blocked_np, config_from, config_to, node_name_to_agent_dict,
-                        node_name_to_agent_list, need_to_freeze_main_goal_node=False,
-                        iteration=iteration, to_assert=to_assert
-                    )
-                    continue
+                # goal_location_is_occupied, distur_a = get_goal_location_is_occupied(agent, node_name_to_agent_dict,
+                #                                                                     node_name_to_agent_list)
+                # assert not goal_location_is_occupied
+                # if goal_location_is_occupied:
+                #     liberate_goal_location(
+                #         agent, distur_a, self.agents, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
+                #         self.non_sv_nodes_with_blocked_np, config_from, config_to, node_name_to_agent_dict,
+                #         node_name_to_agent_list, need_to_freeze_main_goal_node=False,
+                #         iteration=iteration, to_assert=to_assert
+                #     )
+                #     # TODO: freeze arrived nodes
+                #     continue
                 # to wait until the end of distur agent's path?..
                 if not self.need_to_freeze_main_goal_node:
                     self.need_to_freeze_main_goal_node = True
@@ -194,8 +216,9 @@ class AlgCgarMapf(AlgGeneric):
                     config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list,
                     self.non_sv_nodes_with_blocked_np, iteration, to_assert
                 )
+                # TODO: try to return agents
+                # TODO: freeze arrived nodes
                 continue
-
             regular_agent_decision(
                 agent, self.agents, self.nodes, self.nodes_dict, self.h_dict, config_from, config_to, goals,
                 node_name_to_agent_dict, node_name_to_agent_list, [],
@@ -241,20 +264,35 @@ class AlgCgarMapf(AlgGeneric):
             assert a.path[iteration] == a.curr_node
         return fs_to_a_dict
 
-    def update_priorities(self, fs_to_a_dict: Dict[str, AlgCgarMapfAgent], iteration: int, to_assert: bool = False) -> None:
+    def update_priorities(self, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration: int, to_assert: bool = False) -> None:
         init_len = len(self.agents)
         prev_first_agent = self.agents[0].num
+        curr_list: List[str] = [n.xy_name for n in self.curr_nodes]
+        heapq.heapify(curr_list)
+
         unfinished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
         # random.shuffle(unfinished)
+        goal_free_list: List[AlgCgarMapfAgent] = [a for a in unfinished if a.curr_node.xy_name not in curr_list]
+        not_goal_free_list: List[AlgCgarMapfAgent] = [a for a in unfinished if a.curr_node.xy_name in curr_list]
+
         finished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node == a.get_goal_node()]
         random.shuffle(finished)
-        self.agents = [*unfinished, *finished]
-        for i_priority, agent in enumerate(self.agents):
-            agent.priority = i_priority
+        # self.agents = [*unfinished, *finished]
+        self.agents = [*goal_free_list, *not_goal_free_list, *finished]
+
+        update_priority_numbers(self.agents)
+        self.agents = reset_the_first_agent(
+            self.agents, self.nodes_dict, self.h_dict, self.curr_nodes, goals,
+            node_name_to_agent_dict, node_name_to_agent_list, self.non_sv_nodes_with_blocked_np, iteration
+        )
+        update_priority_numbers(self.agents)
+
+        self.need_to_freeze_main_goal_node = True
+
         assert len(set(self.agents)) == init_len
-        new_first_agent = self.agents[0].num
-        if prev_first_agent != new_first_agent:
-            self.need_to_freeze_main_goal_node = False
+        # new_first_agent = self.agents[0].num
+        # if prev_first_agent != new_first_agent:
+        #     self.need_to_freeze_main_goal_node = False
 
 
 @use_profiler(save_dir='../stats/alg_cgar_mapf.pstat')
