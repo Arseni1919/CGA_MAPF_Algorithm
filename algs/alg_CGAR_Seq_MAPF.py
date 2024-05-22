@@ -30,20 +30,28 @@ def is_enough_free_locations(
     heapq.heapify(blocked_nodes_names)
 
     if next_node == goal_node:
-        if next_node not in other_curr_nodes:
-            return True, f'OK - next_node {next_node.xy_name} is a goal node and it is free', 0, {}
-        return False, f'FAILED - next node {next_node.xy_name} is a goal node and is occupied', 1, {}
+        if next_node in other_curr_nodes or next_node in blocked_nodes:
+            return False, f'FAILED-1 - next node {next_node.xy_name} is a goal node and is occupied or blocked', 1, {
+                'goal_node': goal_node.xy_name,
+                'blocked_nodes': [n.xy_name for n in blocked_nodes],
+                'other_curr_nodes': [n.xy_name for n in other_curr_nodes],
+            }
+        return True, f'OK-1 - next_node {next_node.xy_name} is a goal node and it is free', 0, {}
 
     closest_corridor: List[Node] = build_corridor_from_nodes(curr_node, goal_node, nodes_dict, h_dict, non_sv_nodes_np)
-    if closest_corridor[-1] == goal_node and closest_corridor[-1] in other_curr_nodes:
-        return False, f'FAILED - last corridor node {goal_node.xy_name} is a goal node and is occupied', 2, {
-            'closest_corridor': [n.xy_name for n in closest_corridor]
-        }
+    if closest_corridor[-1] == goal_node:
+        if closest_corridor[-1] in other_curr_nodes or closest_corridor[-1] in blocked_nodes:
+            return False, f'FAILED-2 - last corridor node {goal_node.xy_name} is a goal node and is occupied or blocked', 2, {
+                'goal_node': goal_node.xy_name,
+                'closest_corridor': [n.xy_name for n in closest_corridor],
+                'blocked_nodes': [n.xy_name for n in blocked_nodes],
+                'other_curr_nodes': [n.xy_name for n in other_curr_nodes],
+            }
 
     if full_corridor_check:
         corridor_blocked_list = list(set(closest_corridor).intersection(blocked_nodes))
         if len(corridor_blocked_list) > 0:
-            return False, f'FAILED - part of the corridor is blocked: {[n.xy_name for n in corridor_blocked_list]}', 3, {
+            return False, f'FAILED-3 - part of the corridor is blocked: {[n.xy_name for n in corridor_blocked_list]}', 3, {
                 'closest_corridor': [n.xy_name for n in closest_corridor],
                 'corridor_blocked_list': [n.xy_name for n in corridor_blocked_list]
             }
@@ -55,7 +63,7 @@ def is_enough_free_locations(
         if n in other_curr_nodes:
             max_required_free_nodes += 1
     if max_required_free_nodes == 0:
-        return True, f'OK - {max_required_free_nodes=}', 0, {
+        return True, f'OK-2 - {max_required_free_nodes=}', 0, {
             'closest_corridor': [n.xy_name for n in closest_corridor]
         }
 
@@ -68,11 +76,12 @@ def is_enough_free_locations(
         open_list_names.remove(next_node.xy_name)
         # is_sv: bool = non_sv_nodes_np[next_node.x, next_node.y] == 0
         next_node_out_of_full_path = next_node not in full_path
+        # next_node_out_of_full_path = next_node not in closest_corridor
         next_node_is_not_occupied = next_node not in other_curr_nodes
         if next_node_out_of_full_path and next_node_is_not_occupied:
             free_count += 1
             if free_count >= max_required_free_nodes:
-                return True, f'OK - {free_count} free locations for {max_required_free_nodes=}', 0, {
+                return True, f'OK-3 - {free_count} free locations for {max_required_free_nodes=}', 0, {
                     'closest_corridor': [n.xy_name for n in closest_corridor],
                     'max_required_free_nodes': max_required_free_nodes,
                     'free_count': free_count,
@@ -100,7 +109,7 @@ def is_enough_free_locations(
         heapq.heappush(closed_list_names, next_node.xy_name)
 
     error_num = 4 if touched_blocked_nodes else 5
-    return False, 'FAILED - not_enough_free_nodes', error_num, {
+    return False, f'FAILED-{error_num} - not_enough_free_nodes', error_num, {
         'closest_corridor': [n.xy_name for n in closest_corridor],
         'max_required_free_nodes': max_required_free_nodes,
         'free_count': free_count,
