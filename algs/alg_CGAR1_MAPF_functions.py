@@ -8,8 +8,7 @@ from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
 from algs.alg_PIBT import run_i_pibt
 from algs.alg_CGAR import align_all_paths, get_min_h_nei_node
-from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent
-from algs.alg_CGAR_Seq_MAPF import is_enough_free_locations
+from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent, build_corridor_from_nodes
 
 
 class AlgCgarMapfAgent:
@@ -722,3 +721,118 @@ def get_alter_goal_node(
     if alter_goal_node is None:
         return agent.goal_node
     return alter_goal_node
+
+
+def is_enough_free_locations(
+        curr_node: Node,
+        goal_node: Node,
+        nodes_dict: Dict[str, Node],
+        h_dict: Dict[str, np.ndarray],
+        other_curr_nodes: List[Node],
+        non_sv_nodes_np: np.ndarray,
+        blocked_nodes: List[Node] | None = None,
+        full_corridor_check: bool = False
+) -> Tuple[bool, str, int, dict]:
+    next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
+    full_path: List[Node] = [next_node]
+    open_list: List[Node] = [next_node]
+    open_list_names: List[str] = [next_node.xy_name]
+    closed_list: List[Node] = [curr_node, goal_node]
+    closed_list_names: List[str] = [n.xy_name for n in closed_list]
+    heapq.heapify(closed_list_names)
+    if blocked_nodes is None:
+        blocked_nodes = []
+    blocked_nodes_names = [n.xy_name for n in blocked_nodes]
+    heapq.heapify(blocked_nodes_names)
+
+    if next_node == goal_node:
+        if next_node in other_curr_nodes or next_node in blocked_nodes:
+            return False, f'PROBLEM-1 - next node {next_node.xy_name} is a goal node and is occupied or blocked', 1, {
+                'goal_node': goal_node.xy_name,
+                'blocked_nodes': [n.xy_name for n in blocked_nodes],
+                'other_curr_nodes': [n.xy_name for n in other_curr_nodes],
+            }
+        return True, f'OK-1 - next_node {next_node.xy_name} is a goal node and it is free', 0, {}
+
+    closest_corridor: List[Node] = build_corridor_from_nodes(curr_node, goal_node, nodes_dict, h_dict, non_sv_nodes_np)
+    if closest_corridor[-1] == goal_node:
+        if closest_corridor[-1] in other_curr_nodes or closest_corridor[-1] in blocked_nodes:
+            return False, f'PROBLEM-2 - last corridor node {goal_node.xy_name} is a goal node and is occupied or blocked', 2, {
+                'goal_node': goal_node.xy_name,
+                'closest_corridor': [n.xy_name for n in closest_corridor],
+                'blocked_nodes': [n.xy_name for n in blocked_nodes],
+                'other_curr_nodes': [n.xy_name for n in other_curr_nodes],
+            }
+
+    if full_corridor_check:
+        corridor_blocked_list = list(set(closest_corridor).intersection(blocked_nodes))
+        if len(corridor_blocked_list) > 0:
+            return False, f'PROBLEM-3 - part of the corridor is blocked: {[n.xy_name for n in corridor_blocked_list]}', 3, {
+                'closest_corridor': [n.xy_name for n in closest_corridor],
+                'corridor_blocked_list': [n.xy_name for n in corridor_blocked_list]
+            }
+
+    # calc maximum required free nodes
+    max_required_free_nodes = 0
+    assert closest_corridor[0] == curr_node
+    for n in closest_corridor[1:]:
+        if n in other_curr_nodes:
+            max_required_free_nodes += 1
+    if max_required_free_nodes == 0:
+        return True, f'OK-2 - {max_required_free_nodes=}', 0, {
+            'closest_corridor': [n.xy_name for n in closest_corridor]
+        }
+
+    # count available free locations
+    free_count = 0
+    touched_blocked_nodes = False
+    touched_blocked_nodes_list: List[Node] = []
+    while len(open_list) > 0:
+        next_node = open_list.pop()
+        open_list_names.remove(next_node.xy_name)
+        # is_sv: bool = non_sv_nodes_np[next_node.x, next_node.y] == 0
+        next_node_out_of_full_path = next_node not in full_path
+        # next_node_out_of_full_path = next_node not in closest_corridor
+        next_node_is_not_occupied = next_node not in other_curr_nodes
+        if next_node_out_of_full_path and next_node_is_not_occupied:
+            free_count += 1
+            if free_count >= max_required_free_nodes:
+                return True, f'OK-3 - {free_count} free locations for {max_required_free_nodes=}', 0, {
+                    'closest_corridor': [n.xy_name for n in closest_corridor],
+                    'max_required_free_nodes': max_required_free_nodes,
+                    'free_count': free_count,
+                    'blocked_nodes': blocked_nodes,
+                    'open_list_names': open_list_names,
+                    'closed_list_names': closed_list_names,
+                    'blocked_nodes_names': blocked_nodes_names,
+                    'touched_blocked_nodes': touched_blocked_nodes,
+                    'touched_blocked_nodes_list': touched_blocked_nodes_list
+                }
+        for nei_name in next_node.neighbours:
+            if nei_name == next_node.xy_name:
+                continue
+            if nei_name in closed_list_names:
+                continue
+            if nei_name in open_list_names:
+                continue
+            if nei_name in blocked_nodes_names:
+                touched_blocked_nodes = True
+                touched_blocked_nodes_list.append(nei_name)
+                continue
+            nei_node = nodes_dict[nei_name]
+            open_list.append(nei_node)
+            heapq.heappush(open_list_names, nei_name)
+        heapq.heappush(closed_list_names, next_node.xy_name)
+
+    error_num = 4 if touched_blocked_nodes else 5
+    return False, f'PROBLEM-{error_num} - not_enough_free_nodes', error_num, {
+        'closest_corridor': [n.xy_name for n in closest_corridor],
+        'max_required_free_nodes': max_required_free_nodes,
+        'free_count': free_count,
+        'blocked_nodes': blocked_nodes,
+        'open_list_names': open_list_names,
+        'closed_list_names': closed_list_names,
+        'blocked_nodes_names': blocked_nodes_names,
+        'touched_blocked_nodes': touched_blocked_nodes,
+        'touched_blocked_nodes_list': touched_blocked_nodes_list
+    }

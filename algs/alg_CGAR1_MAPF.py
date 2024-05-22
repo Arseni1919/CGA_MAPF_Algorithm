@@ -1,4 +1,4 @@
-from algs.alg_CGAR_MAPF_functions import *
+from algs.alg_CGAR1_MAPF_functions import *
 
 
 class AlgCgarMapf(AlgGeneric):
