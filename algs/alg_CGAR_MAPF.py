@@ -230,6 +230,13 @@ class AlgCgarMapf(AlgGeneric):
         )
         self.clean_agents_to_return()
         # ---------------------------------------------------------------------------------------------------------- #
+        # if at your goal location - stay
+        # ---------------------------------------------------------------------------------------------------------- #
+        # for agent in self.agents:
+        #     # assert len(agent.path) - 1 >= iteration
+        #     if len(agent.path) - 1 == iteration - 1 and agent.path[-1] == agent.get_goal_node():
+        #         agent.path.append(agent.path[-1])
+        # ---------------------------------------------------------------------------------------------------------- #
         # to plan for rest of the agents
         # ---------------------------------------------------------------------------------------------------------- #
         for agent in self.agents[1:]:
