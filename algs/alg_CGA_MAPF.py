@@ -342,10 +342,22 @@ class AlgCgaMapf(AlgGeneric):
     def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
         - while not everyone are at their goals:
-            - calc_next_step()
-            - execute forward steps
-            (?) - execute backward steps
-            - update priorities
+            - CALCULATE NEXT STEPS:
+                - preparations
+                - plan for main agent
+                    - check problems:
+                        1. if there is someone at the goal location -> do nothing
+                        2. if blocked nodes are disturbing -> wait at place
+                        3. if not achievable -> reset the alternative goal location
+                    - execute PIBT or EP step
+                - plan for the rest of agents:
+                    - if any problem -> do nothing
+                    - execute PIBT or EP step
+                - if no plan - stay at place
+            - EXECUTE STEPS:
+                - update curr_node of every agent to the relevant location in the path
+            - UPDATE PRIORITIES:
+                - first unfinished then finished
         """
 
         # to render

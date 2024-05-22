@@ -85,10 +85,26 @@ class AlgCgarMapf(AlgGeneric):
     def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
         - while not everyone are at their goals:
-            - calc_next_step()
-            - execute forward steps
-            (?) - execute backward steps
-            - update priorities
+            - PREPARATIONS
+            - UPDATE PRIORITIES:
+                <IDEA: we ensure that every iteration there is a CGAR instance for the first agent>
+                - if you need to wait for others to complete -> return
+                - update goals
+                - order everyone so that those with free goal positions will be first
+                - check if the goal location is empty and achievable
+                - if not empty:
+                    - send the agent at the goal to some other location that is free and not goal of anyone
+                    - set this agent to be first
+                - if not achievable:
+                    - reset itself to some other non-goal free location
+            - CALCULATE NEST STEPS:
+                <IDEA: only first agent really runs CGAR. The rest execute simple PIBT or EP steps>
+                - move main agent
+                - move return agents
+                - move others (PIBT or EP steps)
+                - stay on the spot if not planned
+            - EXECUTE STEPS:
+                - update curr_node of every agent to the relevant location in the path
         """
 
         # to render
@@ -103,19 +119,20 @@ class AlgCgarMapf(AlgGeneric):
         while not self.stop_condition():
             # current step iteration
             iteration += 1
+            # PREPARE
             config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list = self.get_preparations(iteration)
+            # UPDATE ORDER
             self.update_priorities(goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+            # CALC NEXT STEP
             self.all_calc_next_steps(config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
-            fs_to_a_dict = self.all_execute_next_steps(iteration, to_assert)
-            # self.all_execute_backward_step(iteration, to_assert)
+            # EXECUTE THE STEP
+            self.all_execute_next_steps(iteration, to_assert)
 
-            if to_assert:
-                check_vc_ec_neic_iter(self.agents, iteration)
 
-            # print
+            # PRINT
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
-            # render
+            # RENDER
             if to_render and iteration >= 0:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
@@ -123,6 +140,9 @@ class AlgCgarMapf(AlgGeneric):
                 plot_step_in_env(ax[0], plot_info)
                 plot_return_paths(ax[1], plot_info)
                 plt.pause(plot_rate)
+            # ASSERT
+            if to_assert:
+                check_vc_ec_neic_iter(self.agents, iteration)
 
         if to_assert:
             print(f'\n')

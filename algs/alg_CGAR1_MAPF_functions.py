@@ -660,15 +660,14 @@ def calc_backward_road(
     return
 
 
-def inner_get_alter_goal_node(
+def get_alter_goal_node(
         agent: AlgCgarMapfAgent, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
-        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], add_to_closed_names: List[str],
+        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node],
         full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
         goals: List[Node] | None = None, avoid_goals: bool = False
 ) -> Node | None:
     open_list = deque([agent.curr_node])
     closed_list_names = []
-    closed_list_names.extend(add_to_closed_names)
     main_goal_node: Node = agent.goal_node
     main_goal_non_sv_np = non_sv_nodes_with_blocked_np[main_goal_node.x, main_goal_node.y]
     while len(open_list) > 0:
@@ -703,24 +702,7 @@ def inner_get_alter_goal_node(
                 continue
             open_list.append(n)
         heapq.heappush(closed_list_names, alt_node.xy_name)
-    return None
-
-
-def get_alter_goal_node(
-        agent: AlgCgarMapfAgent, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
-        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node],
-        full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
-        goals: List[Node] | None = None, avoid_goals: bool = False
-) -> Node | None:
-    alter_goal_node = inner_get_alter_goal_node(
-        agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-        add_to_closed_names=[],
-        full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
-        goals=goals, avoid_goals=avoid_goals
-    )
-    if alter_goal_node is None:
-        return agent.goal_node
-    return alter_goal_node
+    return agent.goal_node
 
 
 def is_enough_free_locations(
@@ -729,6 +711,7 @@ def is_enough_free_locations(
         nodes_dict: Dict[str, Node],
         h_dict: Dict[str, np.ndarray],
         other_curr_nodes: List[Node],
+        # node_name_to_agent_list: List[str],
         non_sv_nodes_np: np.ndarray,
         blocked_nodes: List[Node] | None = None,
         full_corridor_check: bool = False
@@ -836,3 +819,19 @@ def is_enough_free_locations(
         'touched_blocked_nodes': touched_blocked_nodes,
         'touched_blocked_nodes_list': touched_blocked_nodes_list
     }
+
+
+# def get_alter_goal_node(
+#         agent: AlgCgarMapfAgent, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
+#         non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node],
+#         full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
+#         goals: List[Node] | None = None, avoid_goals: bool = False
+# ) -> Node | None:
+#     alter_goal_node = inner_get_alter_goal_node(
+#         agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
+#         full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
+#         goals=goals, avoid_goals=avoid_goals
+#     )
+#     if alter_goal_node is None:
+#         return agent.goal_node
+#     return alter_goal_node
