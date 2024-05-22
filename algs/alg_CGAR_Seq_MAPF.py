@@ -31,7 +31,7 @@ def is_enough_free_locations(
 
     if next_node == goal_node:
         if next_node in other_curr_nodes or next_node in blocked_nodes:
-            return False, f'FAILED-1 - next node {next_node.xy_name} is a goal node and is occupied or blocked', 1, {
+            return False, f'PROBLEM-1 - next node {next_node.xy_name} is a goal node and is occupied or blocked', 1, {
                 'goal_node': goal_node.xy_name,
                 'blocked_nodes': [n.xy_name for n in blocked_nodes],
                 'other_curr_nodes': [n.xy_name for n in other_curr_nodes],
@@ -41,7 +41,7 @@ def is_enough_free_locations(
     closest_corridor: List[Node] = build_corridor_from_nodes(curr_node, goal_node, nodes_dict, h_dict, non_sv_nodes_np)
     if closest_corridor[-1] == goal_node:
         if closest_corridor[-1] in other_curr_nodes or closest_corridor[-1] in blocked_nodes:
-            return False, f'FAILED-2 - last corridor node {goal_node.xy_name} is a goal node and is occupied or blocked', 2, {
+            return False, f'PROBLEM-2 - last corridor node {goal_node.xy_name} is a goal node and is occupied or blocked', 2, {
                 'goal_node': goal_node.xy_name,
                 'closest_corridor': [n.xy_name for n in closest_corridor],
                 'blocked_nodes': [n.xy_name for n in blocked_nodes],
@@ -51,7 +51,7 @@ def is_enough_free_locations(
     if full_corridor_check:
         corridor_blocked_list = list(set(closest_corridor).intersection(blocked_nodes))
         if len(corridor_blocked_list) > 0:
-            return False, f'FAILED-3 - part of the corridor is blocked: {[n.xy_name for n in corridor_blocked_list]}', 3, {
+            return False, f'PROBLEM-3 - part of the corridor is blocked: {[n.xy_name for n in corridor_blocked_list]}', 3, {
                 'closest_corridor': [n.xy_name for n in closest_corridor],
                 'corridor_blocked_list': [n.xy_name for n in corridor_blocked_list]
             }
@@ -109,7 +109,7 @@ def is_enough_free_locations(
         heapq.heappush(closed_list_names, next_node.xy_name)
 
     error_num = 4 if touched_blocked_nodes else 5
-    return False, f'FAILED-{error_num} - not_enough_free_nodes', error_num, {
+    return False, f'PROBLEM-{error_num} - not_enough_free_nodes', error_num, {
         'closest_corridor': [n.xy_name for n in closest_corridor],
         'max_required_free_nodes': max_required_free_nodes,
         'free_count': free_count,

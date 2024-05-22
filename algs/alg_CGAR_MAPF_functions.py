@@ -10,7 +10,6 @@ from algs.alg_PIBT import run_i_pibt
 from algs.alg_CGAR import align_all_paths, get_min_h_nei_node
 from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent
 from algs.alg_CGAR_Seq_MAPF import is_enough_free_locations
-from algs.alg_CGA_MAPF import get_alter_goal_node
 
 
 class AlgCgarMapfAgent:
@@ -660,3 +659,66 @@ def calc_backward_road(
             assert agent.curr_node == agent.return_road[-1][3]
             assert agent.prev_node.xy_name in agent.curr_node.neighbours
     return
+
+
+def inner_get_alter_goal_node(
+        agent: AlgCgarMapfAgent, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
+        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node], add_to_closed_names: List[str],
+        full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
+        goals: List[Node] | None = None, avoid_goals: bool = False
+) -> Node | None:
+    open_list = deque([agent.curr_node])
+    closed_list_names = []
+    closed_list_names.extend(add_to_closed_names)
+    main_goal_node: Node = agent.goal_node
+    main_goal_non_sv_np = non_sv_nodes_with_blocked_np[main_goal_node.x, main_goal_node.y]
+    while len(open_list) > 0:
+        alt_node: Node = open_list.popleft()
+
+        # check the option
+        not_curr_node: bool = alt_node != agent.curr_node
+        non_sv_in_main: bool = main_goal_non_sv_np[alt_node.x, alt_node.y] == 1
+        # not_in_alt_goal_nodes: bool = alt_node not in alt_goal_nodes
+        alt_non_sv_np = non_sv_nodes_with_blocked_np[alt_node.x, alt_node.y]
+        alt_is_good, alt_message, i_error, info = is_enough_free_locations(
+            agent.curr_node, alt_node, nodes_dict, h_dict, curr_nodes, alt_non_sv_np, blocked_nodes, full_corridor_check)
+        # if not_curr_node and non_sv_in_main and not_in_alt_goal_nodes and alt_is_good:
+        not_in_curr_nodes = True
+        if avoid_curr_nodes:
+            not_in_curr_nodes = alt_node not in curr_nodes
+        not_in_goal_nodes = True
+        if avoid_goals:
+            not_in_goal_nodes = alt_node not in goals
+        if not_curr_node and non_sv_in_main and alt_is_good and not_in_curr_nodes and not_in_goal_nodes:
+            return alt_node
+
+        for nn in alt_node.neighbours:
+            if nn == alt_node.xy_name:
+                continue
+            if nn in closed_list_names:
+                continue
+            n = nodes_dict[nn]
+            if n in open_list:
+                continue
+            if n in blocked_nodes:
+                continue
+            open_list.append(n)
+        heapq.heappush(closed_list_names, alt_node.xy_name)
+    return None
+
+
+def get_alter_goal_node(
+        agent: AlgCgarMapfAgent, nodes_dict: Dict[str, Node], h_dict: dict, curr_nodes: List[Node],
+        non_sv_nodes_with_blocked_np: np.ndarray, blocked_nodes: List[Node],
+        full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
+        goals: List[Node] | None = None, avoid_goals: bool = False
+) -> Node | None:
+    alter_goal_node = inner_get_alter_goal_node(
+        agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
+        add_to_closed_names=[],
+        full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
+        goals=goals, avoid_goals=avoid_goals
+    )
+    if alter_goal_node is None:
+        return agent.goal_node
+    return alter_goal_node

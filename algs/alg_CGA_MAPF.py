@@ -65,21 +65,21 @@ def get_alter_goal_node[T](
         full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
         goals: List[Node] | None = None, avoid_goals: bool = False
 ) -> Node | None:
-    # add_to_closed_names = [agent.goal_node.xy_name]
-    # alter_goal_node = inner_get_alter_goal_node(
-    #     agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-    #     add_to_closed_names=add_to_closed_names,
-    #     full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
-    #     goals=goals, avoid_goals=avoid_goals
-    # )
-    # if alter_goal_node is None:
-    # add_to_closed_names = []
+    add_to_closed_names = [agent.goal_node.xy_name]
     alter_goal_node = inner_get_alter_goal_node(
         agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-        add_to_closed_names=[],
+        add_to_closed_names=add_to_closed_names,
         full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
         goals=goals, avoid_goals=avoid_goals
     )
+    if alter_goal_node is None:
+        add_to_closed_names = []
+        alter_goal_node = inner_get_alter_goal_node(
+            agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
+            add_to_closed_names=add_to_closed_names,
+            full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
+            goals=goals, avoid_goals=avoid_goals
+        )
     if alter_goal_node is None:
         return agent.goal_node
     return alter_goal_node
@@ -373,7 +373,7 @@ class AlgCgaMapf(AlgGeneric):
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} |'
                   f'runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
-            if to_render and iteration >= 0:
+            if to_render and iteration >= 60:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[
                     i_agent.get_goal_node().x, i_agent.get_goal_node().y]
@@ -468,12 +468,14 @@ class AlgCgaMapf(AlgGeneric):
                 print(f'\n{i_error=}, {message}')
                 distur_a = node_name_to_agent_dict[main_agent.get_goal_node().xy_name]
                 if len(distur_a.path) - 1 >= iteration:
+                    main_agent.path.append(main_agent.path[-1])
                     return
                 if distur_a.alt_goal_node is not None:
                     assert distur_a.setting_agent_name == main_agent.name
                     # self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
                     # return
-                distur_a_alter_goal_node = get_alter_goal_node(distur_a, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes)
+                distur_a_alter_goal_node = get_alter_goal_node(
+                    distur_a, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes)
                 distur_a.reset_alt_goal_node(distur_a_alter_goal_node, main_agent)
                 self.need_to_freeze_main_goal_node = True
                 goals = {a.name: a.get_goal_node() for a in self.agents}
