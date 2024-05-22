@@ -65,7 +65,7 @@ def procedure_i_pibt[T](
 
         if nei_node in blocked_nodes and nei_node == agent_goal_node and agent.priority != 0:
             i_priority = agent.priority
-            print()
+            # print()
             continue
 
         config_to[agent_name] = nei_node

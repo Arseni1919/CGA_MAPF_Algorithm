@@ -65,21 +65,21 @@ def get_alter_goal_node[T](
         full_corridor_check: bool = False, avoid_curr_nodes: bool = False,
         goals: List[Node] | None = None, avoid_goals: bool = False
 ) -> Node | None:
-    add_to_closed_names = [agent.goal_node.xy_name]
+    # add_to_closed_names = [agent.goal_node.xy_name]
+    # alter_goal_node = inner_get_alter_goal_node(
+    #     agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
+    #     add_to_closed_names=add_to_closed_names,
+    #     full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
+    #     goals=goals, avoid_goals=avoid_goals
+    # )
+    # if alter_goal_node is None:
+    # add_to_closed_names = []
     alter_goal_node = inner_get_alter_goal_node(
         agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-        add_to_closed_names=add_to_closed_names,
+        add_to_closed_names=[],
         full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
         goals=goals, avoid_goals=avoid_goals
     )
-    if alter_goal_node is None:
-        add_to_closed_names = []
-        alter_goal_node = inner_get_alter_goal_node(
-            agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np, blocked_nodes,
-            add_to_closed_names=add_to_closed_names,
-            full_corridor_check=full_corridor_check, avoid_curr_nodes=avoid_curr_nodes,
-            goals=goals, avoid_goals=avoid_goals
-        )
     if alter_goal_node is None:
         return agent.goal_node
     return alter_goal_node

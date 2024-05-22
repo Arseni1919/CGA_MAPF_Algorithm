@@ -93,8 +93,8 @@ class AlgCgarMapfAgent:
         self.prev_node = self.curr_node
         self.curr_node = self.path[iteration]
         assert self.prev_node.xy_name in self.curr_node.neighbours
-        if self.alt_goal_node is not None and self.curr_node == self.alt_goal_node:
-            self.reset_alt_goal_node()
+        # if self.alt_goal_node is not None and self.curr_node == self.alt_goal_node:
+        #     self.reset_alt_goal_node()
 
     def get_goal_node(self) -> Node:
         if self.alt_goal_node is None:
@@ -438,21 +438,23 @@ def main_agent_decision(
         blocked_nodes, full_corridor_check=True)
     if not is_good:
         # THERE IS AN AGENT IN THE GOAL LOCATION
-        assert i_error not in [1, 2]
+        assert i_error not in [1, 2], message
         # THE SEARCH OF THE CORRIDOR IS BLOCKED BY PATHS OF OTHER AGENTS
         if i_error in [3, 4]:
             print(f'\n{i_error=}, {message}')
             main_agent.path.append(main_agent.path[-1])
             return [], []
         # THE GOAL IS UNREACHABLE - NEED TO CHANGE START LOCATION
+        # assert i_error not in [5], message
         if i_error in [5]:
-            print(f'\n{i_error=}, {message}')
+            print(f'\n{i_error=}, {message}', end='')
             a_alter_goal_node = get_alter_goal_node(
                 main_agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np,
-                blocked_nodes, full_corridor_check=True)
+                blocked_nodes, full_corridor_check=True, avoid_curr_nodes=True)
             main_agent.reset_alt_goal_node(a_alter_goal_node, main_agent)
             given_goal_node = main_agent.get_goal_node()
             a_non_sv_nodes_np = non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
+            print(f' ...alternative goal is: {a_alter_goal_node.xy_name}')
 
     # ---------------------------------------------------------------------------------------------------------- #
     # EXECUTE THE FORWARD STEP
@@ -478,7 +480,7 @@ def update_priority_numbers(agents: List[AlgCgarMapfAgent]):
         agent.priority = i_priority
 
 
-def reset_the_first_agent(
+def reset_the_first_agent_if_goal_occupied(
         agents: List[AlgCgarMapfAgent],
         nodes_dict: Dict[str, Node],
         h_dict: dict,
@@ -511,6 +513,32 @@ def reset_the_first_agent(
         assert agents[0].get_goal_node().xy_name not in node_name_to_agent_list
         return agents
     return agents
+
+
+# def reset_the_first_agent_if_not_achievable(
+#         agents: List[AlgCgarMapfAgent],
+#         nodes_dict: Dict[str, Node],
+#         h_dict: dict,
+#         curr_nodes: List[Node],
+#         non_sv_nodes_with_blocked_np: np.ndarray,
+#         iteration: int) -> List[AlgCgarMapfAgent]:
+#     main_agent = agents[0]
+#     given_goal_node = main_agent.get_goal_node()
+#     a_non_sv_nodes_np = non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
+#     backward_step_agents = [a for a in agents if len(a.return_road) > 0]
+#     blocked_nodes = get_blocked_nodes_for_ev(agents, iteration, backward_step_agents=backward_step_agents)
+#
+#     is_good, message, i_error, info = is_enough_free_locations(
+#         main_agent.curr_node, given_goal_node, nodes_dict, h_dict, curr_nodes, a_non_sv_nodes_np,
+#         blocked_nodes, full_corridor_check=True)
+#     if i_error in [5]:
+#         print(f'\n{i_error=}, {message}', end='')
+#         a_alter_goal_node = get_alter_goal_node(
+#             main_agent, nodes_dict, h_dict, curr_nodes, non_sv_nodes_with_blocked_np,
+#             blocked_nodes, full_corridor_check=True, avoid_curr_nodes=True)
+#         main_agent.reset_alt_goal_node(a_alter_goal_node, main_agent)
+#         print(f' ...alternative goal is: {a_alter_goal_node.xy_name}')
+#     return agents
 
 
 # def all_reset_return_roads(agents: List[AlgCgarMapfAgent], iteration: int):

@@ -269,11 +269,15 @@ class AlgCgarMapf(AlgGeneric):
         return fs_to_a_dict
 
     def update_priorities(self, goals, node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str], iteration: int, to_assert: bool = False) -> None:
-        if len(self.agents_to_return) > 0:
-            return
-
-        init_len = len(self.agents)
         prev_main_agent = self.agents[0]
+        if len(self.agents_to_return) > 0:
+            goal_location_is_occupied, distur_a = get_goal_location_is_occupied(
+                prev_main_agent, node_name_to_agent_dict, node_name_to_agent_list)
+            assert not goal_location_is_occupied
+            return
+        if prev_main_agent.alt_goal_node is not None and prev_main_agent.curr_node == prev_main_agent.alt_goal_node:
+            prev_main_agent.reset_alt_goal_node()
+        init_len = len(self.agents)
         unfinished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
         # random.shuffle(unfinished)
 
@@ -289,18 +293,24 @@ class AlgCgarMapf(AlgGeneric):
         self.agents = [*goal_free_list, *not_goal_free_list, *finished]
 
         update_priority_numbers(self.agents)
-        self.agents = reset_the_first_agent(
+        self.agents = reset_the_first_agent_if_goal_occupied(
             self.agents, self.nodes_dict, self.h_dict, self.curr_nodes, goals,
             node_name_to_agent_dict, node_name_to_agent_list, self.non_sv_nodes_with_blocked_np, iteration
         )
+        # self.agents = reset_the_first_agent_if_not_achievable(
+        #     self.agents, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, iteration
+        # )
         update_priority_numbers(self.agents)
 
         self.need_to_freeze_main_goal_node = True
 
         curr_main_agent = self.agents[0]
+        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(curr_main_agent, node_name_to_agent_dict, node_name_to_agent_list)
+        assert not goal_location_is_occupied
         if curr_main_agent != prev_main_agent:
             print(f'\n --- main agent: {self.agents[0].name} ---')
         assert len(set(self.agents)) == init_len
+        return
 
 
 @use_profiler(save_dir='../stats/alg_cgar_mapf.pstat')
