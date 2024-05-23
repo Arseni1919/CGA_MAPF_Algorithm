@@ -63,7 +63,7 @@ class SimEnvMAPF:
         # create agents
         self._create_agents()
 
-        # set goals
+        # set goals_dict
         if self.is_SACGR:
             self.main_agent = self.agents[0]
             occupied_nodes = [agent.start_node for agent in self.agents]
@@ -89,7 +89,7 @@ class SimEnvMAPF:
         self.start_nodes = prev_start_nodes
         # create agents
         self._create_agents()
-        # set goals
+        # set goals_dict
         for agent, goal_node in zip(self.agents, prev_goal_nodes):
             agent.goal_node = goal_node
 

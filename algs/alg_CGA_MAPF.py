@@ -341,7 +341,7 @@ class AlgCgaMapf(AlgGeneric):
 
     def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
-        - while not everyone are at their goals:
+        - while not everyone are at their goals_dict:
             - CALCULATE NEXT STEPS:
                 - preparations
                 - plan for main agent
@@ -484,7 +484,7 @@ class AlgCgaMapf(AlgGeneric):
                     return
                 if distur_a.alt_goal_node is not None:
                     assert distur_a.setting_agent_name == main_agent.name
-                    # self.regular_agent_decision(distur_a, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+                    # self.regular_agent_decision(distur_a, config_from, config_to, goals_dict, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
                     # return
                 distur_a_alter_goal_node = get_alter_goal_node(
                     distur_a, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, blocked_nodes)
@@ -749,7 +749,7 @@ if __name__ == '__main__':
 #         print(f'\npibt step')
 #     # blocked_nodes, planned_agents = update_blocked_nodes(self.agents, iteration, blocked_nodes, planned_agents)
 #     blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
-#     self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, config_to, goals,
+#     self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, config_to, goals_dict,
 #                         node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
 # else:
 #     # calc evacuation of agents from the corridor

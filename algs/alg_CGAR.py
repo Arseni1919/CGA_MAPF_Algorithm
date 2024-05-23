@@ -287,6 +287,7 @@ def align_all_paths[T](agents: T) -> int:
 class AlgCGARAgent:
     def __init__(self, num: int, start_node: Node, goal_node: Node, nodes: List[Node], nodes_dict: Dict[str, Node]):
         self.num = num
+        self.priority = num
         self.start_node: Node = start_node
         self.prev_node: Node = start_node
         self.curr_node: Node = start_node
@@ -472,6 +473,9 @@ class AlgCGAR(AlgGeneric):
             blocked_nodes = [self.main_agent.goal_node]
             self.non_sv_nodes_np = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np,
                                                        blocked_nodes=blocked_nodes)
+
+        # for i_priority, agent in enumerate(self.agents):
+        #     agent.priority = i_priority
 
     def check_solvability(self) -> Tuple[bool, str]:
         assert self.main_agent.goal_node != self.main_agent.start_node

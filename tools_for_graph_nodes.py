@@ -344,7 +344,7 @@ def main():
     # img_dir = 'brc202d.map'  # 481-530
     nodes, nodes_dict, img_np = build_graph_nodes(img_dir=img_dir, path='maps', show_map=True)
     # start_nodes = get_edge_nodes(nodes_type='starts', scen_name='tree', nodes_dict=nodes_dict)
-    # goal_nodes = get_edge_nodes(nodes_type='goals', scen_name='tree', nodes_dict=nodes_dict)
+    # goal_nodes = get_edge_nodes(nodes_type='goals_dict', scen_name='tree', nodes_dict=nodes_dict)
     print()
 
 

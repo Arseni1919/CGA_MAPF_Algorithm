@@ -25,7 +25,7 @@ class AlgCgarMapf(AlgGeneric):
         self.agents: List[AlgCgarMapfAgent] = []
         self.agents_dict: Dict[str, AlgCgarMapfAgent] = {}
         self.agents_num_dict: Dict[int, AlgCgarMapfAgent] = {}
-        self.need_to_freeze_main_goal_node: bool = False
+        self.need_to_freeze_main_goal_node: bool = True
         self.agents_to_return: List[AlgCgarMapfAgent] = []
         self.n_agents = 0
 
@@ -39,14 +39,6 @@ class AlgCgarMapf(AlgGeneric):
     @property
     def start_nodes_names(self):
         return [a.start_node.xy_name for a in self.agents]
-
-    @property
-    def curr_nodes(self):
-        return [a.curr_node for a in self.agents]
-
-    @property
-    def curr_nodes_names(self):
-        return [a.curr_node.xy_name for a in self.agents]
 
     @property
     def goal_nodes(self):
@@ -84,12 +76,12 @@ class AlgCgarMapf(AlgGeneric):
 
     def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[bool, Dict[str, List[Node]]]:
         """
-        - while not everyone are at their goals:
+        - while not everyone are at their goals_dict:
             - PREPARATIONS
             - UPDATE PRIORITIES:
                 <IDEA: we ensure that every iteration there is a CGAR instance for the first agent>
                 - if you need to wait for others to complete -> return
-                - update goals
+                - update goals_dict
                 - order everyone so that those with free goal positions will be first
                 - check if the goal location is empty and achievable
                 - if not empty:
@@ -120,11 +112,12 @@ class AlgCgarMapf(AlgGeneric):
             # current step iteration
             iteration += 1
             # PREPARE
-            config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list = self.get_preparations(iteration)
+            # curr_n_name_to_agent_dict, curr_n_name_to_agent_list
+            config_from, config_to, goals_dict, curr_n_name_to_agent_dict, curr_n_name_to_agent_list = self.get_preparations(iteration)
             # UPDATE ORDER
-            self.update_priorities(goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+            self.update_priorities(goals_dict, curr_n_name_to_agent_dict, curr_n_name_to_agent_list, iteration, to_assert)
             # CALC NEXT STEP
-            self.all_calc_next_steps(config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert)
+            self.all_calc_next_steps(config_from, config_to, goals_dict, curr_n_name_to_agent_dict, curr_n_name_to_agent_list, iteration, to_assert)
             # EXECUTE THE STEP
             self.all_execute_next_steps(iteration, to_assert)
 
@@ -167,31 +160,88 @@ class AlgCgarMapf(AlgGeneric):
         # build blocked nodes
         config_from: Dict[str, Node] = {}
         config_to: Dict[str, Node] = {}
-        goals: Dict[str, Node] = {}
-        node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent] = {}
-        node_name_to_agent_list: List[str] = []
+        goals_dict: Dict[str, Node] = {}
+        curr_n_name_to_agent_dict: Dict[str, AlgCgarMapfAgent] = {}
+        curr_n_name_to_agent_list: List[str] = []
         for agent in self.agents:
             config_from[agent.name] = agent.curr_node
-            goals[agent.name] = agent.get_goal_node()
-            node_name_to_agent_dict[agent.curr_node.xy_name] = agent
+            goals_dict[agent.name] = agent.get_goal_node()
+            curr_n_name_to_agent_dict[agent.curr_node.xy_name] = agent
             assert agent.path[iteration-1] == agent.curr_node
-            heapq.heappush(node_name_to_agent_list, agent.curr_node.xy_name)
-        # node_name_to_agent_list: List[str] = list(node_name_to_agent_dict.keys())
-        # heapq.heapify(node_name_to_agent_list)
+            heapq.heappush(curr_n_name_to_agent_list, agent.curr_node.xy_name)
         # ---------------------------------------------------------------------------------------------------------- #
-        return config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list
+        return config_from, config_to, goals_dict, curr_n_name_to_agent_dict, curr_n_name_to_agent_list
+
+    def update_priorities(
+            self, goals_dict: Dict[str, Node], curr_n_name_to_agent_dict: Dict[str, AlgCgarMapfAgent],
+            curr_n_name_to_agent_list: List[str], iteration: int, to_assert: bool = False
+    ) -> None:
+        """
+        - UPDATE PRIORITIES:
+                <IDEA: we ensure that every iteration there is a CGAR instance for the first agent>
+                - if you need to wait for others to complete -> return
+                - update goals
+                - order everyone so that those with free goal positions will be first
+                - check if the goal location is empty and achievable
+                - if not empty:
+                    - send the agent at the goal to some other location that is free and not goal of anyone
+                    - set this agent to be first
+                - if not achievable:
+                    - reset itself to some other non-goal free location
+        """
+        prev_main_agent = self.agents[0]
+        if len(self.agents_to_return) > 0:
+            # need to wait
+            goal_location_is_occupied, distur_a = get_goal_location_is_occupied(
+                prev_main_agent, curr_n_name_to_agent_dict, curr_n_name_to_agent_list)
+            assert not goal_location_is_occupied
+            return
+
+        if prev_main_agent.alt_goal_node is not None and prev_main_agent.curr_node == prev_main_agent.alt_goal_node:
+            prev_main_agent.remove_alt_goal_node()
+
+        init_len = len(self.agents)
+
+        unfinished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
+        # random.shuffle(unfinished)
+        blocked_names = [n.xy_name for n in get_blocked_nodes_for_ev(self.agents, iteration)]
+        no_no_list: List[str] = [*curr_n_name_to_agent_list, *blocked_names]
+        goal_free_list: List[AlgCgarMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name not in no_no_list]
+        not_goal_free_list: List[AlgCgarMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name in no_no_list]
+        finished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node == a.get_goal_node()]
+        random.shuffle(finished)
+
+        # self.agents = [*unfinished, *finished]
+        self.agents = [*goal_free_list, *not_goal_free_list, *finished]
+
+        update_priority_numbers(self.agents)
+        self.agents = reset_the_first_agent_if_goal_occupied(
+            self.agents, self.nodes_dict, self.h_dict, curr_n_name_to_agent_dict, curr_n_name_to_agent_list,
+            self.non_sv_nodes_with_blocked_np, iteration
+        )
+        update_priority_numbers(self.agents)
+
+        curr_main_agent = self.agents[0]
+        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(
+            curr_main_agent, curr_n_name_to_agent_dict, curr_n_name_to_agent_list)
+        assert not goal_location_is_occupied
+        if curr_main_agent != prev_main_agent:
+            print(f'\n --- main agent: {self.agents[0].name} ---')
+        assert len(set(self.agents)) == init_len
+        return
 
     def add_to_agents_to_return(self, new_agents: List[AlgCgarMapfAgent]) -> None:
         for a in new_agents:
             if a not in self.agents_to_return:
                 self.agents_to_return.append(a)
 
-    def clean_agents_to_return(self) -> None:
+    def clean_agents_to_return(self, iteration: int) -> None:
         cleaned_agents_to_return: List[AlgCgarMapfAgent] = []
         deleted_agents: List[AlgCgarMapfAgent] = []
         for agent in self.agents_to_return:
-            if len(agent.return_road) == 1:
-                assert agent.return_road[-1][3] == agent.path[-1]
+            assert len(agent.path) - 1 >= iteration
+            if len(agent.return_road) == 1 and len(agent.path[iteration:]) == 1:
+                assert agent.return_road[-1][3] == agent.path[iteration]
                 deleted_agents.append(agent)
             else:
                 cleaned_agents_to_return.append(agent)
@@ -199,63 +249,58 @@ class AlgCgarMapf(AlgGeneric):
         for da in deleted_agents:
             da.reset_return_road()
 
-    def reset_agents_to_return(self) -> None:
-        self.agents_to_return = []
-
-    def all_calc_next_steps(self, config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list, iteration: int, to_assert: bool = False) -> Tuple[List[AlgCgarMapfAgent], List[AlgCgarMapfAgent], List[AlgCgarMapfAgent]]:
+    def all_calc_next_steps(
+            self, config_from, config_to, goals, curr_n_name_to_agent_dict, curr_n_name_to_agent_list,
+            iteration: int, to_assert: bool = False
+    ) -> Tuple[List[AlgCgarMapfAgent], List[AlgCgarMapfAgent], List[AlgCgarMapfAgent]]:
 
         # ---------------------------------------------------------------------------------------------------------- #
         # assertions
         # ---------------------------------------------------------------------------------------------------------- #
         main_agent = self.agents[0]
-        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(main_agent, node_name_to_agent_dict, node_name_to_agent_list)
+        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(main_agent, curr_n_name_to_agent_dict, curr_n_name_to_agent_list)
         assert not goal_location_is_occupied
 
         # ---------------------------------------------------------------------------------------------------------- #
         # decide for the main agent
         # ---------------------------------------------------------------------------------------------------------- #
-        main_stay_on_goal_check_and_update(main_agent, iteration)
+        # all except the main agent (the first one)
         agents_without_plan: List[AlgCgarMapfAgent] = [a for a in self.agents[1:] if len(a.path) - 1 == iteration - 1]
-        has_a_plan = len(main_agent.path) - 1 >= iteration  # already planned
-        on_its_goal = main_agent.curr_node == main_agent.get_goal_node()  # already at its goal
-        if not has_a_plan and not on_its_goal:
-            assert self.need_to_freeze_main_goal_node
-            # all_reset_return_roads(self.agents, iteration)
-            main_agent_decision(
-                main_agent, self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
-                config_from, config_to, goals, node_name_to_agent_dict, node_name_to_agent_list,
-                self.non_sv_nodes_with_blocked_np, iteration, to_assert
-            )
+        main_agent_decision_message = main_agent_decision(
+            main_agent, self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.h_dict,
+            config_from, config_to, goals, curr_n_name_to_agent_dict, curr_n_name_to_agent_list,
+            self.non_sv_nodes_with_blocked_np, iteration, to_assert
+        )
         agents_with_newly_created_plan: List[AlgCgarMapfAgent] = [a for a in agents_without_plan if len(a.path) - 1 >= iteration]
-        self.add_to_agents_to_return(agents_with_newly_created_plan)
-        agents_with_prev_plan: List[AlgCgarMapfAgent] = [a for a in self.agents_to_return if a not in agents_with_newly_created_plan and len(a.path) - 1 >= iteration]
-        agents_with_new_plan = [*agents_with_newly_created_plan, *agents_with_prev_plan]
-        # print(f'\n before: {len(agents_without_plan)} -> after: {len(agents_with_new_plan)}')
+        assert main_agent not in agents_with_newly_created_plan
+        # print(f'\n before: {len(agents_without_plan)} -> after: {len(agents_with_newly_created_plan)}')
         # ---------------------------------------------------------------------------------------------------------- #
         # plan for backstep agents
         # ---------------------------------------------------------------------------------------------------------- #
-        all_update_return_roads(agents_with_new_plan, iteration)
-        from_n_to_a_dict = node_name_to_agent_dict
-        backward_step_agents = [a for a in self.agents_to_return if a not in agents_with_new_plan]
+        # Preps
+        self.add_to_agents_to_return(agents_with_newly_created_plan)
+        agents_with_prev_plan: List[AlgCgarMapfAgent] = [a for a in self.agents_to_return if a not in agents_with_newly_created_plan and len(a.path) - 1 >= iteration]
+        planned_agents = [*agents_with_newly_created_plan, *agents_with_prev_plan]
+        from_n_to_a_dict = curr_n_name_to_agent_dict
+        backward_step_agents = [a for a in self.agents_to_return if a not in planned_agents]
         for ba in backward_step_agents:
             assert len(ba.path) - 1 == iteration - 1
         future_captured_node_names: List[str] = [n.xy_name for n in get_blocked_nodes_for_ev(self.agents, iteration)]
         fs_to_a_dict = {a.path[iteration].xy_name: a for a in self.agents if len(a.path) - 1 >= iteration}
         to_config = {a.name: a.path[iteration] for a in self.agents if len(a.path) - 1 >= iteration}
-        # print(f'\n before: {len(agents_without_plan)} -> after: {len(agents_with_new_plan)}')
-        # print(f'\n agents_to_return: {len(self.agents_to_return)} -> backward agents: {len(backward_step_agents)}')
+
+        all_update_return_roads(planned_agents, iteration)
         calc_backward_road(
-            backward_step_agents, agents_with_new_plan, self.agents_to_return, self.agents_dict, from_n_to_a_dict,
+            backward_step_agents, planned_agents, self.agents_to_return, self.agents_dict, from_n_to_a_dict,
             future_captured_node_names, fs_to_a_dict, to_config, iteration, to_assert
         )
-        self.clean_agents_to_return()
+        self.clean_agents_to_return(iteration)
+        # for new_a in agents_with_newly_created_plan:
+        #     assert new_a in self.agents_to_return
         # ---------------------------------------------------------------------------------------------------------- #
         # if at your goal location - stay
         # ---------------------------------------------------------------------------------------------------------- #
-        # for agent in self.agents:
-        #     # assert len(agent.path) - 1 >= iteration
-        #     if len(agent.path) - 1 == iteration - 1 and agent.path[-1] == agent.get_goal_node():
-        #         agent.path.append(agent.path[-1])
+        # all_others_if_at_goal_then_stay(self.agents, main_agent, iteration, to_assert)
         # ---------------------------------------------------------------------------------------------------------- #
         # to plan for rest of the agents
         # ---------------------------------------------------------------------------------------------------------- #
@@ -268,10 +313,11 @@ class AlgCgarMapf(AlgGeneric):
                 # if agent.curr_node == agent.goal_node:
                 continue
             r_message = regular_agent_decision(
-                agent, self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.h_dict, config_from, config_to, goals,
-                node_name_to_agent_dict, node_name_to_agent_list, self.agents_to_return,
-                self.non_sv_nodes_with_blocked_np, self.need_to_freeze_main_goal_node, self.curr_nodes,
+                agent, self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.h_dict,
+                config_from, config_to, goals, curr_n_name_to_agent_dict, curr_n_name_to_agent_list,
+                self.agents_to_return, self.non_sv_nodes_with_blocked_np, self.need_to_freeze_main_goal_node,
                 iteration, to_assert)
+
         # ---------------------------------------------------------------------------------------------------------- #
         # if no decision - just stay
         # ---------------------------------------------------------------------------------------------------------- #
@@ -295,50 +341,6 @@ class AlgCgarMapf(AlgGeneric):
             assert a.path[iteration] == a.curr_node
         return fs_to_a_dict
 
-    def update_priorities(self, goals, node_name_to_agent_dict: Dict[str, AlgCgarMapfAgent], node_name_to_agent_list: List[str], iteration: int, to_assert: bool = False) -> None:
-        prev_main_agent = self.agents[0]
-        if len(self.agents_to_return) > 0:
-            goal_location_is_occupied, distur_a = get_goal_location_is_occupied(
-                prev_main_agent, node_name_to_agent_dict, node_name_to_agent_list)
-            assert not goal_location_is_occupied
-            return
-        if prev_main_agent.alt_goal_node is not None and prev_main_agent.curr_node == prev_main_agent.alt_goal_node:
-            prev_main_agent.reset_alt_goal_node()
-        init_len = len(self.agents)
-        unfinished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node != a.get_goal_node()]
-        # random.shuffle(unfinished)
-
-        # curr_list: List[str] = [n.xy_name for n in self.curr_nodes]
-        # heapq.heapify(curr_list)
-        goal_free_list: List[AlgCgarMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name not in node_name_to_agent_list]
-        not_goal_free_list: List[AlgCgarMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name in node_name_to_agent_list]
-
-        finished: List[AlgCgarMapfAgent] = [a for a in self.agents if a.curr_node == a.get_goal_node()]
-        random.shuffle(finished)
-
-        # self.agents = [*unfinished, *finished]
-        self.agents = [*goal_free_list, *not_goal_free_list, *finished]
-
-        update_priority_numbers(self.agents)
-        self.agents = reset_the_first_agent_if_goal_occupied(
-            self.agents, self.nodes_dict, self.h_dict, self.curr_nodes, goals,
-            node_name_to_agent_dict, node_name_to_agent_list, self.non_sv_nodes_with_blocked_np, iteration
-        )
-        # self.agents = reset_the_first_agent_if_not_achievable(
-        #     self.agents, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np, iteration
-        # )
-        update_priority_numbers(self.agents)
-
-        self.need_to_freeze_main_goal_node = True
-
-        curr_main_agent = self.agents[0]
-        goal_location_is_occupied, distur_a = get_goal_location_is_occupied(curr_main_agent, node_name_to_agent_dict, node_name_to_agent_list)
-        assert not goal_location_is_occupied
-        if curr_main_agent != prev_main_agent:
-            print(f'\n --- main agent: {self.agents[0].name} ---')
-        assert len(set(self.agents)) == init_len
-        return
-
 
 @use_profiler(save_dir='../stats/alg_cgar_mapf.pstat')
 def main():
@@ -354,41 +356,6 @@ if __name__ == '__main__':
 # distur: ['17_22', '16_22', '17_22', '17_21', '17_21', '17_20', '17_19', '17_19']
 
 
-# decide on the goal
-# given_goal_node = agent.get_goal_node()
-# a_non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
-# blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
-# is_good, message, i_error, info = is_enough_free_locations(
-#     agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict, self.curr_nodes, a_non_sv_nodes_np,
-#     blocked_nodes)
-# if not is_good:
-#     # print(f'\n{agent.name}: {message}')
-#     if agent.priority == 0 and i_error in [1, 2]:
-#         print(f'\n{i_error=}')
-#         distr_a = node_name_to_agent_dict[agent.get_goal_node().xy_name]
-#         # if distr_a.alt_goal_node is not None and distr_a.alt_goal_node != given_goal_node:
-#         #     continue
-#         if agent.priority < distr_a.priority:
-#             distr_a_alter_goal_node = get_alter_goal_node(distr_a, self.nodes_dict, self.h_dict,
-#                                                           self.curr_nodes,
-#                                                           self.non_sv_nodes_with_blocked_np, blocked_nodes,
-#                                                           self.goal_nodes)
-#             distr_a.alt_goal_node = distr_a_alter_goal_node
-#         continue
-#     if agent.priority == 0 and i_error in [3]:
-#         print(f'\n{i_error=}')
-#         continue
-#     if agent.priority == 0 and i_error in [4]:
-#         print(f'\n{i_error=}')
-#         a_alter_goal_node = get_alter_goal_node(
-#             agent, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np,
-#             blocked_nodes, self.goal_nodes)
-#         agent.alt_goal_node = a_alter_goal_node
-#         # given_goal_node = agent.get_goal_node()
-#         continue
-#     if agent.priority != 0:
-#         continue
-#
 # a_next_node = get_min_h_nei_node(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
 # if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
 #     # calc single PIBT step
@@ -396,8 +363,8 @@ if __name__ == '__main__':
 #         print(f'\npibt step')
 #     # blocked_nodes, planned_agents = update_blocked_nodes(self.agents, iteration, blocked_nodes, planned_agents)
 #     blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
-#     self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, config_to, goals,
-#                         node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
+#     self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, config_to, goals_dict,
+#                         curr_n_name_to_agent_dict, curr_n_name_to_agent_list, iteration, to_assert=to_assert)
 # else:
 #     # calc evacuation of agents from the corridor
 #     if agent.priority == 0:
@@ -416,13 +383,13 @@ if __name__ == '__main__':
 #
 #
 # def agents_on_road_moving[T](
-#         given_a: T, given_goal: Node, nodes_dict: dict, h_dict: dict, node_name_to_agent_dict: Dict[str, T], node_name_to_agent_list: List[str]
+#         given_a: T, given_goal: Node, nodes_dict: dict, h_dict: dict, curr_n_name_to_agent_dict: Dict[str, T], curr_n_name_to_agent_list: List[str]
 # ) -> Tuple[bool, bool]:
 #     road = calc_road_to_goal(given_a.curr_node, given_goal, nodes_dict, h_dict)
 #     there_are_agents_on_road = False
 #     for n in road:
-#         if n.xy_name in node_name_to_agent_list:
-#             other_a = node_name_to_agent_dict[n.xy_name]
+#         if n.xy_name in curr_n_name_to_agent_list:
+#             other_a = curr_n_name_to_agent_dict[n.xy_name]
 #             if other_a != given_a:
 #                 continue
 #             there_are_agents_on_road = True
@@ -450,16 +417,6 @@ if __name__ == '__main__':
 # ---------------------------------------------------------------------------------------------------- #
 # Liberate the goal location and freeze
 # ---------------------------------------------------------------------------------------------------- #
-# goal_location_is_occupied, distur_a = get_goal_location_is_occupied(agent, node_name_to_agent_dict,
-#                                                                     node_name_to_agent_list)
-# assert not goal_location_is_occupied
-# if goal_location_is_occupied:
-#     liberate_goal_location(
-#         agent, distur_a, self.agents, self.nodes, self.nodes_dict, self.h_dict, self.curr_nodes,
-#         self.non_sv_nodes_with_blocked_np, config_from, config_to, node_name_to_agent_dict,
-#         node_name_to_agent_list, need_to_freeze_main_goal_node=False,
-#         iteration=iteration, to_assert=to_assert
-#     )
-#     # freeze arrived nodes
-#     continue
+# goal_location_is_occupied, distur_a = get_goal_location_is_occupied(agent, curr_n_name_to_agent_dict,
+#                                                                     curr_n_name_to_agent_list)
 # to wait until the end of distur agent's path?..
