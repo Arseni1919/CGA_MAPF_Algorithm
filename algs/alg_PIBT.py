@@ -52,9 +52,6 @@ def procedure_i_pibt[T](
 
     nei_nodes.sort(key=get_nei_v)
 
-    if agent.num == 218 and '30_2' in agent_curr_node.neighbours:
-        print()
-
     for j, nei_node in enumerate(nei_nodes):
         # vc
         if (nei_node.x, nei_node.y) in vc_set:
@@ -67,14 +64,9 @@ def procedure_i_pibt[T](
             continue
 
         if nei_node in blocked_nodes and nei_node == agent_goal_node and agent.priority != 0:
-            i_priority = agent.priority
-            # print()
             continue
 
         config_to[agent_name] = nei_node
-        # blocked_nodes.append(config_from[agent_name])
-        # if agent.num in [7, 87]:
-        #     print(f'\n{agent_name} True -> {config_to[agent_name].xy_name}')
         if nei_node.xy_name in curr_n_name_to_agent_list:
             next_agent = curr_n_name_to_agent_dict[nei_node.xy_name]
             if agent != next_agent and next_agent.name not in config_to:
@@ -87,14 +79,12 @@ def procedure_i_pibt[T](
                     continue
         return True
     config_to[agent_name] = agent_curr_node
-    # if agent.num in [7, 87]:
-    #     print(f'\n{agent_name} False -> {config_to[agent_name].xy_name}')
     return False
 
 
 def run_i_pibt[T](
         main_agent: T,
-        agents: List[T],
+        agents: List[T] | Deque[T],
         nodes_dict: Dict[str, Node],
         h_dict: Dict[str, np.ndarray],
         config_from: Dict[str, Node] | None = None,

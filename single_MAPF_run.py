@@ -60,10 +60,10 @@ def single_mapf_run(AlgClass, is_SACGR=True):
 
         # img_dir = 'empty-32-32.map'
         # img_dir = 'random-32-32-10.map'
-        # img_dir = 'random-32-32-20.map'
+        img_dir = 'random-32-32-20.map'
         # img_dir = 'maze-32-32-4.map'
         # img_dir = 'maze-32-32-2.map'
-        img_dir = 'room-32-32-4.map'
+        # img_dir = 'room-32-32-4.map'
         # limits
         max_time = 1e7  # seconds
         # debug
@@ -76,8 +76,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         to_render = False
         # to_save_animation = True
         to_save_animation = False
-        # to_do_animation = True
-        to_do_animation = False
+        to_do_animation = True
+        # to_do_animation = False
         # ------------------------------------------------------------------------------------------------------------ #
         # ------------------------------------------------------------------------------------------------------------ #
         # ------------------------------------------------------------------------------------------------------------ #
@@ -108,7 +108,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         plt.close()
         if solved and to_do_animation:
             do_the_animation(info={
-                'img_dir': img_dir, 'img_np': env.img_np, 'paths_dict': paths_dict, 'i_agent': alg.agents[0],
+                'img_dir': img_dir, 'img_np': env.img_np, 'paths_dict': paths_dict, 'i_agent': alg.agents_dict['agent_0'],
                 'max_time': len(max(list(paths_dict.values()))), 'alg_name': alg.name
             }, to_save=to_save_animation)
         print(f'The run {i_problem + 1} is finished\n{solved=}')

@@ -264,17 +264,11 @@ def calc_pibt_step(
     curr_blocked_nodes = blocked_nodes[:]
     if is_main_agent:
         curr_blocked_nodes.append(given_goal_node)
-    # agent_218 = agents_dict['agent_218']
-    if iteration >= 177 and main_agent.num == 54:
-        print()
     config_to = run_i_pibt(
         main_agent=main_agent, agents=agents, nodes_dict=nodes_dict, h_dict=h_dict,
         config_from=config_from, config_to=config_to, goals=goals,
         curr_n_name_to_agent_dict=curr_n_name_to_agent_dict, curr_n_name_to_agent_list=curr_n_name_to_agent_list,
         blocked_nodes=curr_blocked_nodes, given_goal_node=given_goal_node, iteration=iteration)
-
-    if iteration >= 177 and main_agent.num == 54:
-        print()
     # Update paths
     for agent in agents:
         if len(agent.path) - 1 == iteration - 1 and agent.name in config_to:

@@ -10,7 +10,7 @@ from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
 from algs.alg_PIBT import run_i_pibt
 from algs.alg_CGAR import *
-from algs.alg_CGAR_Seq_MAPF import is_enough_free_locations
+from algs.alg_CGAR0_Seq_MAPF import is_enough_free_locations
 
 
 def inner_get_alter_goal_node[T](
@@ -87,12 +87,12 @@ def get_alter_goal_node[T](
 
 def get_blocked_nodes[T](agents: T, iteration: int, need_to_freeze_main_goal_node: bool = False) -> List[Node]:
     blocked_nodes: List[Node] = []
-    # planned_agents: List[T] = []
+    # newly_planned_agents: List[T] = []
     for agent in agents:
         # assert len(agent.path) - 1 == iteration - 1
         if len(agent.path) - 1 >= iteration:
-            # heapq.heappush(planned_agents, agent)
-            # planned_agents.append(agent)
+            # heapq.heappush(newly_planned_agents, agent)
+            # newly_planned_agents.append(agent)
             for n in agent.path[iteration:]:
                 # heapq.heappush(blocked_nodes, n)
                 blocked_nodes.append(n)
@@ -747,7 +747,7 @@ if __name__ == '__main__':
 #     # calc single PIBT step
 #     if agent.priority == 0:
 #         print(f'\npibt step')
-#     # blocked_nodes, planned_agents = update_blocked_nodes(self.agents, iteration, blocked_nodes, planned_agents)
+#     # blocked_nodes, newly_planned_agents = update_blocked_nodes(self.agents, iteration, blocked_nodes, newly_planned_agents)
 #     blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
 #     self.calc_pibt_step(agent, given_goal_node, blocked_nodes, config_from, config_to, goals_dict,
 #                         node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
@@ -785,16 +785,16 @@ if __name__ == '__main__':
 
 
 # def update_blocked_nodes[T](
-#         agents: T, iteration: int, blocked_nodes: List[Node], planned_agents: List[T]
+#         agents: T, iteration: int, blocked_nodes: List[Node], newly_planned_agents: List[T]
 # ) -> Tuple[List[Node], List[T]]:
 #     for agent in agents:
-#         if agent in planned_agents:
+#         if agent in newly_planned_agents:
 #             continue
 #         # assert len(agent.path) - 1 == iteration - 1
 #         if len(agent.path) > iteration:
-#             planned_agents.append(agent)
-#             # heapq.heappush(planned_agents, agent)
+#             newly_planned_agents.append(agent)
+#             # heapq.heappush(newly_planned_agents, agent)
 #             for n in agent.path[iteration:]:
 #                 heapq.heappush(blocked_nodes, n)
 #     # assert len(blocked_nodes_names) == 0
-#     return blocked_nodes, planned_agents
+#     return blocked_nodes, newly_planned_agents

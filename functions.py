@@ -135,7 +135,7 @@ def check_if_ec_iter(agents, iteration):
             raise RuntimeError(f'edge collision: {agent1.name} and {agent2.name} in {edge1}')
 
 
-def check_vc_ec_neic_iter(agents: list, iteration: int) -> None:
+def check_vc_ec_neic_iter(agents: list | Deque, iteration: int) -> None:
     for a1, a2 in combinations(agents, 2):
         # vertex conf
         assert a1.path[iteration] != a2.path[iteration], f'[i: {iteration}] vertex conf: {a1.name}-{a2.name} in {a1.path[iteration].xy_name}'
@@ -152,7 +152,7 @@ def check_vc_ec_neic_iter(agents: list, iteration: int) -> None:
     assert agents[-1].path[iteration].xy_name in agents[-1].path[max(0, iteration - 1)].neighbours, f'[i: {iteration}] wow wow wow! Not nei pos!'
 
 
-def check_paths(agents: list, from_iteration: int = 1) -> None:
+def check_paths(agents: list | deque, from_iteration: int = 1) -> None:
     if len(agents) == 0:
         return
     max_len = max(map(lambda a: len(a.path), agents))
