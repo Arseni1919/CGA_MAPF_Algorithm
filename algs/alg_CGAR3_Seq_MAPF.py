@@ -1,9 +1,12 @@
 from algs.alg_CGAR3_Seq_MAPF_functions import *
+from single_MAPF_run import single_mapf_run
+from environments.env_MAPF import SimEnvMAPF
+from algs.alg_generic_class import AlgGeneric
 
 
-class AlgCgarMapf(AlgGeneric):
+class AlgCgar3SeqMapf(AlgGeneric):
 
-    name = 'CGAR-MAPF'
+    name = 'CGAR3-Seq-MAPF'
 
     def __init__(self, env: SimEnvMAPF):
         super().__init__()
@@ -22,8 +25,7 @@ class AlgCgarMapf(AlgGeneric):
         self.h_dict: Dict[str, np.ndarray] = self.env.h_dict
 
         # for the problem
-        self.agents: Deque[AlgCgar3SeqMapfAgent] = []
-        self.agents_deq: Deque[AlgCgar3SeqMapfAgent] = deque()
+        self.agents: Deque[AlgCgar3SeqMapfAgent] = deque()
         self.agents_dict: Dict[str, AlgCgar3SeqMapfAgent] = {}
         self.agents_num_dict: Dict[int, AlgCgar3SeqMapfAgent] = {}
         self.need_to_freeze_main_goal_node: bool = True
@@ -69,7 +71,6 @@ class AlgCgarMapf(AlgGeneric):
             self.agents_dict[new_agent.name] = new_agent
             self.agents_num_dict[new_agent.num] = new_agent
         self.n_agents = len(self.agents)
-        self.agents_deq = deque(self.agents)
 
     def check_solvability(self) -> Tuple[bool, str]:
         # frankly, we need to check here the minimum number of free non-SV locations
@@ -141,7 +142,7 @@ class AlgCgarMapf(AlgGeneric):
 @use_profiler(save_dir='../stats/alg_cgar3_seq_mapf.pstat')
 def main():
     # single_mapf_run(AlgCgaMapf, is_SACGR=True)
-    single_mapf_run(AlgCgarMapf, is_SACGR=False)
+    single_mapf_run(AlgCgar3SeqMapf, is_SACGR=False)
 
 
 if __name__ == '__main__':

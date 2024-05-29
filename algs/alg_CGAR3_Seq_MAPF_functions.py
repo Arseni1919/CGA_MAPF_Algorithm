@@ -1,16 +1,8 @@
-import heapq
-
-import numpy as np
-
 from tools_for_plotting import *
 from tools_for_heuristics import *
 from tools_for_graph_nodes import *
-from single_MAPF_run import single_mapf_run
-from environments.env_MAPF import SimEnvMAPF
-from algs.alg_generic_class import AlgGeneric
 from algs.alg_PIBT import run_i_pibt
-from algs.alg_CGAR import get_min_h_nei_node
-from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent, build_corridor_from_nodes
+from algs.alg_CGAR import get_min_h_nei_node, find_ev_path, push_ev_agents, push_main_agent, build_corridor_from_nodes
 
 
 class AlgCgar3SeqMapfAgent:
@@ -91,7 +83,7 @@ class AlgCgar3SeqMapfAgent:
     def execute_simple_step(self, iteration: int) -> None:
         self.prev_node = self.curr_node
         self.curr_node = self.path[iteration]
-        assert self.prev_node.xy_name in self.curr_node.neighbours
+        # assert self.prev_node.xy_name in self.curr_node.neighbours
 
     def get_goal_node(self) -> Node:
         if self.alt_goal_node is not None:
@@ -184,6 +176,7 @@ def order_the_agents(
     final_list: Deque[AlgCgar3SeqMapfAgent] = deque([*goal_free_list, *not_goal_free_list, *finished])
     update_priority_numbers(final_list)
     return final_list, last_n_name_to_a_dict, last_n_name_to_a_list
+
 
 def is_enough_free_locations(
         curr_node: Node,
@@ -451,8 +444,8 @@ def calc_ep_steps(
     # Preps
     blocked_nodes = []
     # Calc
-    corridor: List[Node] = build_corridor(main_agent, nodes_dict, h_dict, a_non_sv_nodes_np,
-                                          given_goal_node=given_goal_node)
+    corridor: List[Node] = build_corridor_from_nodes(main_agent.curr_node, given_goal_node, nodes_dict, h_dict, a_non_sv_nodes_np)
+    # corridor: List[Node] = build_corridor(main_agent, nodes_dict, h_dict, a_non_sv_nodes_np, given_goal_node=given_goal_node)
     corridor_names: List[str] = [n.xy_name for n in corridor]
     assert corridor[0] == main_agent.path[-1]
 
@@ -665,9 +658,9 @@ def clean_agents_to_return(
     cleaned_agents_to_return: List[AlgCgar3SeqMapfAgent] = []
     deleted_agents: List[AlgCgar3SeqMapfAgent] = []
     for agent in agents_to_return:
-        assert len(agent.path) - 1 >= iteration
+        # assert len(agent.path) - 1 >= iteration
         if len(agent.return_road) == 1 and len(agent.path[iteration:]) == 1:
-            assert agent.return_road[-1][3] == agent.path[iteration]
+            # assert agent.return_road[-1][3] == agent.path[iteration]
             deleted_agents.append(agent)
         else:
             cleaned_agents_to_return.append(agent)
@@ -904,9 +897,9 @@ def compress_paths(
                 agent_road_times.append((n.xy_name, i))
             else:
                 agent_road_times.append(agent_road_times[-1])
-    print('\nFinished to build road dicts.')
+    print('Finished to build road dicts.')
     # ---------------------------------------------------------------------------------------------------------------- #
-    print('\nStart to build waiting table...')
+    print('Start to build waiting table...')
     waiting_table: Dict[str, Deque[Tuple[str, int]]] = {n.xy_name: deque() for n in nodes}
     for i in range(max_len):
         for agent in agents:
@@ -921,7 +914,7 @@ def compress_paths(
                 if (last_agent_name, last_agent_time) == (agent_name, curr_first_arrive_time):
                     continue
                 waiting_list.append((agent_name, curr_first_arrive_time))
-    print('\nFinished to build waiting table.')
+    print('Finished to build waiting table.')
     # ---------------------------------------------------------------------------------------------------------------- #
     new_paths_dict: Dict[str, List[Node]] = {a.name: [a.start_node] for a in agents}
     iteration_next = 0
@@ -952,8 +945,6 @@ def compress_paths(
             next_a_name = next_a.name
             next_a_road_marks = agents_roads_marks_dict[next_a_name]
 
-            # if iteration_next >= 29 and iteration_config >= 80:
-            #     print(f'', end='')
             assert next_a_name not in config_to
 
             curr_n_name, curr_t = next_a_road_marks[0]

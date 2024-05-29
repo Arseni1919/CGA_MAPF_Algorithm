@@ -8,6 +8,7 @@ from algs.alg_PIBT import run_i_pibt
 from algs.alg_CGAR import align_all_paths, get_min_h_nei_node
 from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent, build_corridor_from_nodes
 
+
 class AlgCgar2MapfAgent:
     def __init__(self, num: int, start_node: Node, goal_node: Node, nodes: List[Node], nodes_dict: Dict[str, Node]):
         self.num = num
@@ -121,3 +122,110 @@ class AlgCgar2MapfAgent:
     def remove_from_wl(self, node: Node, agent_on_road: Self, iteration: int, to_assert: bool = False):
         remove_item = (agent_on_road.name, iteration)
         self.waiting_table[node.xy_name] = [i for i in self.waiting_table[node.xy_name] if i != remove_item]
+
+
+def stay_where_you_are(main_agent: AlgCgar2MapfAgent):
+    main_agent.path.append(main_agent.path[-1])
+
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
+# -------------------------------------------------------------------------------------------------------------------- #
+def continuation_check_stage(
+        main_agent: AlgCgar2MapfAgent,
+        iteration: int,
+        agents_to_return_dict: Dict[str, List[AlgCgar2MapfAgent]],
+        agents_dict: Dict[str, AlgCgar2MapfAgent],
+) -> Tuple[bool, dict]:
+    # returns: to_resume: bool = True
+
+    # if the agent has a plan
+    if len(main_agent.path) - 1 >= iteration:
+        return True, {'message': ''}
+
+    # If the agent is at its goal and has return paths to finish
+    if main_agent.curr_node == main_agent.get_goal_node():
+        main_a_return_agents_list = agents_to_return_dict[main_agent.name]
+        if len(main_a_return_agents_list) > 0:
+            stay_where_you_are(main_agent)
+            return True, {'message': ''}
+        # If the agent is at its goal and has no return paths to finish
+        the_order_swapped = False
+        if main_agent.alt_goal_node is not None:
+            # Put back the previous order
+            the_order_swapped = main_agent.setting_agent_name != main_agent.name
+            if the_order_swapped:
+                setting_agent = agents_dict[main_agent.setting_agent_name]
+                prev_setting_agent_priority = setting_agent.priority
+                setting_agent.priority = main_agent.priority
+                main_agent.priority = prev_setting_agent_priority
+                assert len(setting_agent.path) - 1 == iteration - 1
+                stay_where_you_are(setting_agent)
+            # Change the goal of the agent i back to the original
+            main_agent.remove_alt_goal_node()
+        stay_where_you_are(main_agent)
+        message = 'swap' if the_order_swapped else ''
+        return False, {'message': message}
+
+    # Create blocked map
+
+
+
+
+    return True, {'message': ''}
+
+
+
+
+def calc_step_stage(
+        main_agent: AlgCgar2MapfAgent
+) -> None:
+    pass
+
+
+def return_agents_stage(
+        main_agent: AlgCgar2MapfAgent
+):
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
