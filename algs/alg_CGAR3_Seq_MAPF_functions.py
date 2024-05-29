@@ -940,7 +940,7 @@ def compress_paths(
         iteration_config = 0
         while len(config_to) < len(config_from):
             iteration_config += 1
-            if iteration_config > len(config_from) * 2:
+            if iteration_config > len(config_from) * 10:
                 chain_dict = update_chain_dict(chain_dict, config_from, config_to)
                 to_resume = resolve_circles(
                     chain_dict, config_from, config_to, agents_roads_marks_dict, waiting_table, nodes_dict,
