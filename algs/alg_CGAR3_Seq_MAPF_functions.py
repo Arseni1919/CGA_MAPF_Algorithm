@@ -819,8 +819,10 @@ def update_chain_dict(
 
 def find_circles(chain_dict: Dict[str, str]) -> List[List[str]]:
     circles_list: List[List[str]] = []
-    closed_list = []
+    closed_list: List[str] = []
     open_list = list(chain_dict.keys())
+    # chain_keys = list(chain_dict.keys())
+    # heapq.heapify(chain_keys)
     while len(open_list) > 0:
         new_a_name = open_list.pop()
         if new_a_name in closed_list:
@@ -830,6 +832,7 @@ def find_circles(chain_dict: Dict[str, str]) -> List[List[str]]:
         is_circle = False
 
         while True:
+            # if next_a_name not in chain_keys:
             if next_a_name not in chain_dict:
                 break
             if next_a_name in closed_list:
@@ -844,9 +847,12 @@ def find_circles(chain_dict: Dict[str, str]) -> List[List[str]]:
             next_a_name = chain_dict[next_a_name]
 
         if is_circle:
-            closed_list.extend(new_circle_list)
+            for new_c_name in new_circle_list:
+                heapq.heappush(closed_list, new_c_name)
+            # closed_list.extend(new_circle_list)
         else:
-            closed_list.append(new_a_name)
+            # closed_list.append(new_a_name)
+            heapq.heappush(closed_list, new_a_name)
     return circles_list
 
 
@@ -934,13 +940,14 @@ def compress_paths(
         iteration_config = 0
         while len(config_to) < len(config_from):
             iteration_config += 1
-            chain_dict = update_chain_dict(chain_dict, config_from, config_to)
-            to_resume = resolve_circles(
-                chain_dict, config_from, config_to, agents_roads_marks_dict, waiting_table, nodes_dict,
-                open_deq, agents_dict
-            )
-            if not to_resume:
-                continue
+            if iteration_config > len(config_from) * 2:
+                chain_dict = update_chain_dict(chain_dict, config_from, config_to)
+                to_resume = resolve_circles(
+                    chain_dict, config_from, config_to, agents_roads_marks_dict, waiting_table, nodes_dict,
+                    open_deq, agents_dict
+                )
+                if not to_resume:
+                    continue
             next_a = open_deq.popleft()
             next_a_name = next_a.name
             next_a_road_marks = agents_roads_marks_dict[next_a_name]
@@ -989,7 +996,8 @@ def compress_paths(
         for a_name, node in config_to.items():
             new_paths_dict[a_name].append(node)
 
-        print(f'\rCompressing paths... {iteration_next}', end='')
+        solved: List[AlgCgar3SeqMapfAgent] = [a for a in agents if a.goal_node == new_paths_dict[a.name][-1]]
+        print(f'\rCompressing paths... {iteration_next} | {len(solved)}/{len(agents)}', end='')
         # check_configs(agents, config_from, config_to, final_check=True)
     print('\nFinished to compress.')
     return new_paths_dict

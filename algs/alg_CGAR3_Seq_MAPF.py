@@ -138,7 +138,7 @@ class AlgCgarMapf(AlgGeneric):
         return True
 
 
-@use_profiler(save_dir='../stats/alg_cgar_mapf.pstat')
+@use_profiler(save_dir='../stats/alg_cgar3_seq_mapf.pstat')
 def main():
     # single_mapf_run(AlgCgaMapf, is_SACGR=True)
     single_mapf_run(AlgCgarMapf, is_SACGR=False)
