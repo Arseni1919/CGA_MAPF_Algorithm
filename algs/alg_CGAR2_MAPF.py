@@ -153,12 +153,26 @@ class AlgCgar2Mapf(AlgGeneric):
             )
             if not to_resume:
                 continue
+
+            unplanned_agents: List[AlgCgar2MapfAgent] = [
+                a for a in self.agents if len(a.path) - 1 == iteration - 1 and a != agent
+            ]
+
             calc_step_stage(
-                agent, iteration,
-                self.non_sv_nodes_with_blocked_np
+                agent, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+                self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.nodes, self.nodes_dict,
+                self.img_np, self.h_dict
             )
+
+            # Get newly-moved agents
+            newly_planned_agents: List[AlgCgar2MapfAgent] = [
+                a for a in unplanned_agents if len(a.path) - 1 > iteration - 1
+            ]
+
             return_agents_stage(
-                agent
+                agent, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+                newly_planned_agents,
+                self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.agents_to_return_dict,
             )
 
     def execute_next_steps(self, iteration: int, to_assert: bool = False) -> None:

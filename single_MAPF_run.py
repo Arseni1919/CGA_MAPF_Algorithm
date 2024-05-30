@@ -72,8 +72,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # to_assert = True
         to_assert = False
         # rendering
-        # to_render = True
-        to_render = False
+        to_render = True
+        # to_render = False
         # to_save_animation = True
         to_save_animation = False
         to_do_animation = True
