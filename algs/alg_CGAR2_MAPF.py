@@ -138,20 +138,24 @@ class AlgCgar2Mapf(AlgGeneric):
             else:
                 unfinished.append(agent)
         self.agents = [*unfinished, *finished]
+        update_priority_numbers(self.agents)
 
     def build_next_steps(self, iteration: int, to_assert: bool = False) -> None:
+
+        config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list = self.get_preparations(iteration)
+
         for agent in self.agents:
             # stay_where_you_are(agent)
-            to_resume = continuation_check_stage(
-                agent,
-                iteration,
-                self.agents_to_return_dict,
-                self.agents_dict,
+            to_resume, cc_stage_info = continuation_check_stage(
+                agent, iteration, curr_n_name_to_a_dict, curr_n_name_to_a_list, goals_dict,
+                self.agents_to_return_dict, self.agents, self.agents_dict, self.img_np, self.h_dict,
+                self.non_sv_nodes_with_blocked_np, self.nodes, self.nodes_dict,
             )
             if not to_resume:
                 continue
             calc_step_stage(
-                agent
+                agent, iteration,
+                self.non_sv_nodes_with_blocked_np
             )
             return_agents_stage(
                 agent
@@ -167,16 +171,16 @@ class AlgCgar2Mapf(AlgGeneric):
         config_from: Dict[str, Node] = {}
         config_to: Dict[str, Node] = {}
         goals_dict: Dict[str, Node] = {}
-        curr_n_name_to_agent_dict: Dict[str, AlgCgar2MapfAgent] = {}
-        curr_n_name_to_agent_list: List[str] = []
+        curr_n_name_to_a_dict: Dict[str, AlgCgar2MapfAgent] = {}
+        curr_n_name_to_a_list: List[str] = []
         for agent in self.agents:
             config_from[agent.name] = agent.curr_node
             goals_dict[agent.name] = agent.get_goal_node()
-            curr_n_name_to_agent_dict[agent.curr_node.xy_name] = agent
+            curr_n_name_to_a_dict[agent.curr_node.xy_name] = agent
             assert agent.path[iteration-1] == agent.curr_node
-            heapq.heappush(curr_n_name_to_agent_list, agent.curr_node.xy_name)
+            heapq.heappush(curr_n_name_to_a_list, agent.curr_node.xy_name)
         # ---------------------------------------------------------------------------------------------------------- #
-        return config_from, config_to, goals_dict, curr_n_name_to_agent_dict, curr_n_name_to_agent_list
+        return config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list
 
 
 @use_profiler(save_dir='../stats/alg_cgar2_mapf.pstat')
