@@ -160,16 +160,16 @@ class AlgCgar3Mapf(AlgGeneric):
         config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list = self.get_preparations(iteration)
         future_captured_node_names: List[str] = []
         future_captured_node_names = update_future_captured_node_names(future_captured_node_names, self.agents, iteration)
-        # blocked_map_2: np.ndarray = init_blocked_map(self.agents, self.img_np, iteration)
+        blocked_map_2: np.ndarray = init_blocked_map(self.agents, self.img_np, iteration)
 
         for curr_rank, agent in enumerate(self.agents):
             assert agent.curr_rank == curr_rank
             hr_agents = self.agents[:curr_rank]
             lr_agents = self.agents[curr_rank + 1:]
 
-            blocked_map: np.ndarray = get_blocked_map(
-                agent, hr_agents, lr_agents, self.agents, self.agents_to_return_dict, self.img_np, iteration
-            )
+            # blocked_map: np.ndarray = get_blocked_map(
+            #     agent, hr_agents, lr_agents, self.agents, self.agents_to_return_dict, self.img_np, iteration
+            # )
             # assert (blocked_map == blocked_map_2).all()
             ua_list: List[AlgCgar3MapfAgent] = [a for a in self.agents if len(a.path) - 1 == iteration - 1]
             unplanned_agents: List[AlgCgar3MapfAgent] = [
@@ -177,21 +177,20 @@ class AlgCgar3Mapf(AlgGeneric):
             ]
 
             to_resume, cc_stage_info = continuation_check_stage(
-                agent, hr_agents, lr_agents, blocked_map, iteration,
+                agent, hr_agents, lr_agents, blocked_map_2, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.agents_to_return_dict, self.agents, self.agents_dict, self.img_np, self.h_dict,
                 self.non_sv_nodes_with_blocked_np, self.nodes, self.nodes_dict,
             )
 
             calc_step_stage_message = calc_step_stage(
-                agent, hr_agents, lr_agents, blocked_map, iteration,
+                agent, hr_agents, lr_agents, blocked_map_2, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.agents_to_return_dict, self.nodes, self.nodes_dict,
                 self.img_np, self.h_dict
             )
 
             # Get newly-moved agents
-            pa_list = [a for a in ua_list if len(a.path) - 1 >= iteration]
             newly_planned_agents = get_newly_planned_agents(unplanned_agents, config_to, iteration)
             set_parent_of_path(newly_planned_agents, parent=agent)
             future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
@@ -204,9 +203,10 @@ class AlgCgar3Mapf(AlgGeneric):
             )
 
             # update blocked map
-            # blocked_map_2 = update_blocked_map(
-            #     blocked_map_2, agent, hr_agents, pa_list, self.agents_to_return_dict, iteration
-            # )
+            pa_list = [a for a in ua_list if len(a.path) - 1 >= iteration]
+            blocked_map_2 = update_blocked_map(
+                blocked_map_2, agent, hr_agents, pa_list, self.agents_to_return_dict, iteration
+            )
 
         for agent in self.agents:
             if len(agent.path) - 1 == iteration - 1:

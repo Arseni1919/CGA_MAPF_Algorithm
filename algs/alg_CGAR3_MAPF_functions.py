@@ -257,24 +257,12 @@ def update_blocked_map(
             blocked_map[n.x, n.y] = 1
 
     # Block return paths set by HR-agents
-    # for n in main_agent.return_road_nodes:
-    #     blocked_map[n.x, n.y] = 1
-    # hr_return_agents = agents_to_return_dict[main_agent.name]
-    # for sub_a in hr_return_agents:
-    #     for n in sub_a.return_road_nodes:
-    #         blocked_map[n.x, n.y] = 1
-    for curr_priority, hr_agent in enumerate(hr_agents):
-
-        for n in hr_agent.return_road_nodes:
+    for n in main_agent.return_road_nodes:
+        blocked_map[n.x, n.y] = 1
+    hr_return_agents = agents_to_return_dict[main_agent.name]
+    for sub_a in hr_return_agents:
+        for n in sub_a.return_road_nodes:
             blocked_map[n.x, n.y] = 1
-
-            # if blocked_map[27, 9]:
-            #     print()
-
-        hr_return_agents = agents_to_return_dict[hr_agent.name]
-        for sub_a in hr_return_agents:
-            for n in sub_a.return_road_nodes:
-                blocked_map[n.x, n.y] = 1
     return blocked_map
 
 
@@ -863,27 +851,46 @@ def remove_crossed_return_paths_of_lr_agents(
 
 
 def if_set_by_hr_a_cross_me_remove_my_return_paths(
-        main_agent: AlgCgar3MapfAgent, agents: List[AlgCgar3MapfAgent],
+        main_agent: AlgCgar3MapfAgent, hr_agents: List[AlgCgar3MapfAgent],
+        newly_planned_agents: List[AlgCgar3MapfAgent], agents: List[AlgCgar3MapfAgent],
         iteration: int, agents_to_return_dict: Dict[str, List[AlgCgar3MapfAgent]],
+config_to: Dict[str, Node], agents_dict: Dict[str, AlgCgar3MapfAgent],
 ) -> None:
     main_agents_to_return = agents_to_return_dict[main_agent.name]
     agents_to_return_nodes_names: List[str] = []
     for agent_to_return in main_agents_to_return:
-        assert len(agent_to_return.return_road) > 0
-        for n in agent_to_return.return_road_nodes:
+        # assert len(agent_to_return.return_road) > 0
+        for n in agent_to_return.return_road_nodes[-2:]:
             heapq.heappush(agents_to_return_nodes_names, n.xy_name)
+
     to_remove_return_paths = False
-    for agent in agents:
+    for agent_name, config_n in config_to.items():
+        agent = agents_dict[agent_name]
         if agent.parent_of_path.curr_rank >= main_agent.curr_rank:
             continue
-        if len(agent.path) - 1 == iteration - 1:
-            continue
-        for n in agent.path[iteration - 1:]:
-            if n.xy_name in agents_to_return_nodes_names:
-                to_remove_return_paths = True
-                break
-        if to_remove_return_paths:
+        if config_n.xy_name in agents_to_return_nodes_names:
+            to_remove_return_paths = True
             break
+        # for n in agent.path[iteration - 1:]:
+        #     if n.xy_name in agents_to_return_nodes_names:
+        #         to_remove_return_paths = True
+        #         break
+        # if to_remove_return_paths:
+        #     break
+
+    # to_remove_return_paths = False
+    # for agent in agents:
+    #     if agent.parent_of_path.curr_rank >= main_agent.curr_rank:
+    #         continue
+    #     if len(agent.path) - 1 == iteration - 1:
+    #         continue
+    #     for n in agent.path[iteration - 1:]:
+    #         if n.xy_name in agents_to_return_nodes_names:
+    #             to_remove_return_paths = True
+    #             break
+    #     if to_remove_return_paths:
+    #         break
+
     if to_remove_return_paths:
         remove_return_paths_of_agent(main_agent, agents_to_return_dict)
         remove_return_paths_of_agent(main_agent.parent_of_return_road, agents_to_return_dict)
@@ -1103,7 +1110,10 @@ def return_agents_stage(
         agents_to_return_dict: Dict[str, List[AlgCgar3MapfAgent]],
 ) -> None:
 
-    if_set_by_hr_a_cross_me_remove_my_return_paths(main_agent, agents, iteration, agents_to_return_dict)
+    if_set_by_hr_a_cross_me_remove_my_return_paths(
+        main_agent, hr_agents, newly_planned_agents, agents, iteration, agents_to_return_dict,
+        config_to, agents_dict
+    )
 
     agents_to_return = agents_to_return_dict[main_agent.name]
 
@@ -1129,7 +1139,8 @@ def return_agents_stage(
     agents_to_return, deleted_agents = clean_agents_to_return(agents_to_return, iteration)
     agents_to_return_dict[main_agent.name] = agents_to_return
 
-    update_config_to(config_to, agents, iteration)
+    # update_config_to(config_to, agents, iteration)
+    update_config_to(config_to, backward_step_agents, iteration)
 
     return
 
