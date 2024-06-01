@@ -673,7 +673,7 @@ class AlgCgaMapf(AlgGeneric):
         random.shuffle(finished)
         self.agents = [*unfinished, *finished]
         for i_priority, agent in enumerate(self.agents):
-            agent.priority = i_priority
+            agent.future_rank = i_priority
         assert len(set(self.agents)) == init_len
         new_first_agent = self.agents[0].num
         if prev_first_agent != new_first_agent:
@@ -716,22 +716,22 @@ if __name__ == '__main__':
 #     blocked_nodes)
 # if not is_good:
 #     # print(f'\n{agent.name}: {message}')
-#     if agent.priority == 0 and i_error in [1, 2]:
+#     if agent.future_rank == 0 and i_error in [1, 2]:
 #         print(f'\n{i_error=}')
 #         distr_a = node_name_to_agent_dict[agent.get_goal_node().xy_name]
 #         # if distr_a.alt_goal_node is not None and distr_a.alt_goal_node != given_goal_node:
 #         #     continue
-#         if agent.priority < distr_a.priority:
+#         if agent.future_rank < distr_a.future_rank:
 #             distr_a_alter_goal_node = get_alter_goal_node(distr_a, self.nodes_dict, self.h_dict,
 #                                                           self.curr_nodes,
 #                                                           self.non_sv_nodes_with_blocked_np, blocked_nodes,
 #                                                           self.goal_nodes)
 #             distr_a.alt_goal_node = distr_a_alter_goal_node
 #         continue
-#     if agent.priority == 0 and i_error in [3]:
+#     if agent.future_rank == 0 and i_error in [3]:
 #         print(f'\n{i_error=}')
 #         continue
-#     if agent.priority == 0 and i_error in [4]:
+#     if agent.future_rank == 0 and i_error in [4]:
 #         print(f'\n{i_error=}')
 #         a_alter_goal_node = get_alter_goal_node(
 #             agent, self.nodes_dict, self.h_dict, self.curr_nodes, self.non_sv_nodes_with_blocked_np,
@@ -739,13 +739,13 @@ if __name__ == '__main__':
 #         agent.alt_goal_node = a_alter_goal_node
 #         # given_goal_node = agent.get_goal_node()
 #         continue
-#     if agent.priority != 0:
+#     if agent.future_rank != 0:
 #         continue
 #
 # a_next_node = get_min_h_nei_node(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
 # if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
 #     # calc single PIBT step
-#     if agent.priority == 0:
+#     if agent.future_rank == 0:
 #         print(f'\npibt step')
 #     # blocked_nodes, newly_planned_agents = update_blocked_nodes(self.agents, iteration, blocked_nodes, newly_planned_agents)
 #     blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
@@ -753,7 +753,7 @@ if __name__ == '__main__':
 #                         node_name_to_agent_dict, node_name_to_agent_list, iteration, to_assert=to_assert)
 # else:
 #     # calc evacuation of agents from the corridor
-#     if agent.priority == 0:
+#     if agent.future_rank == 0:
 #         print(f'\nev step')
 #     self.calc_ep_steps(agent, given_goal_node, config_from, a_non_sv_nodes_np, iteration,
 #                        to_assert=to_assert)

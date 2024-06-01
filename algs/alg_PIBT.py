@@ -33,7 +33,8 @@ def procedure_i_pibt[T](
         goals: Dict[str, Node],
         curr_n_name_to_agent_dict: Dict[str, T],
         curr_n_name_to_agent_list: List[str],
-        blocked_nodes: List[Node]
+        blocked_nodes: List[Node],
+        boss_agent: T,
 ) -> bool:
     agent_name = agent.name
     agent_curr_node = config_from[agent_name]
@@ -63,7 +64,8 @@ def procedure_i_pibt[T](
         if nei_node in blocked_nodes and nei_node != agent_goal_node:
             continue
 
-        if nei_node in blocked_nodes and nei_node == agent_goal_node and agent.priority != 0:
+        # if nei_node in blocked_nodes and nei_node == agent_goal_node and agent.future_rank != 0:
+        if nei_node in blocked_nodes and nei_node == agent_goal_node and agent.curr_rank != boss_agent.curr_rank:
             continue
 
         config_to[agent_name] = nei_node
@@ -72,7 +74,7 @@ def procedure_i_pibt[T](
             if agent != next_agent and next_agent.name not in config_to:
                 next_is_valid = procedure_i_pibt(
                     next_agent, nodes_dict, h_dict, config_from, config_to, goals,
-                    curr_n_name_to_agent_dict, curr_n_name_to_agent_list, blocked_nodes
+                    curr_n_name_to_agent_dict, curr_n_name_to_agent_list, blocked_nodes, boss_agent
                 )
                 if not next_is_valid:
                     vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
@@ -112,7 +114,7 @@ def run_i_pibt[T](
         goals = {k: v for k, v in goals.items()}
         goals[main_agent.name] = given_goal_node
     _ = procedure_i_pibt(main_agent, nodes_dict, h_dict, config_from, config_to, goals,
-                         curr_n_name_to_agent_dict, curr_n_name_to_agent_list, blocked_nodes)
+                         curr_n_name_to_agent_dict, curr_n_name_to_agent_list, blocked_nodes, boss_agent=main_agent)
     return config_to
 
 
@@ -264,7 +266,7 @@ class AlgPIBT(AlgGeneric):
                     agents_finished.append(agent)
 
             # unfinished first
-            self.agents.sort(key=lambda a: a.priority, reverse=True)
+            self.agents.sort(key=lambda a: a.future_rank, reverse=True)
 
             # stats
             pass

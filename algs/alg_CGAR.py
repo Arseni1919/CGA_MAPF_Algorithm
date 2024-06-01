@@ -475,7 +475,7 @@ class AlgCGAR(AlgGeneric):
                                                        blocked_nodes=blocked_nodes)
 
         # for i_priority, agent in enumerate(self.agents):
-        #     agent.priority = i_priority
+        #     agent.future_rank = i_priority
 
     def check_solvability(self) -> Tuple[bool, str]:
         assert self.main_agent.goal_node != self.main_agent.start_node

@@ -3,7 +3,7 @@ import numpy as np
 from functions import *
 
 
-def do_the_animation(info, to_save=False):
+def do_the_animation(info, to_save=False, to_animate=False):
     img_np: np.ndarray = info['img_np']
     paths_dict: Dict[str, List[Any]] = info['paths_dict']
     max_time: int | float = info['max_time']
@@ -61,5 +61,6 @@ def do_the_animation(info, to_save=False):
     if to_save:
         add_text = f'{alg_name}_'
         ani.save(filename=f"../videos/{add_text}{n_agents}_agents_in_{img_dir[:-4]}_for_{max_time}_steps.mp4", writer="ffmpeg")
-    plt.show()
+    if to_animate:
+        plt.show()
 

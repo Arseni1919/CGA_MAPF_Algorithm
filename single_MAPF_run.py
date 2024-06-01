@@ -50,7 +50,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 100
+        N = 300
         i_problems = 1
         # img_dir = '10_10_my_rand.map'
         # img_dir = '15-15-two-rooms.map'
@@ -72,8 +72,8 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # to_assert = True
         to_assert = False
         # rendering
-        to_render = True
-        # to_render = False
+        # to_render = True
+        to_render = False
         # to_save_animation = True
         to_save_animation = False
         to_do_animation = True
@@ -106,11 +106,11 @@ def single_mapf_run(AlgClass, is_SACGR=True):
             pass
 
         plt.close()
-        if solved and to_do_animation:
-            do_the_animation(info={
-                'img_dir': img_dir, 'img_np': env.img_np, 'paths_dict': paths_dict, 'i_agent': alg.agents_dict['agent_0'],
-                'max_time': len(max(list(paths_dict.values()))), 'alg_name': alg.name
-            }, to_save=to_save_animation)
+        to_do_animation = solved and to_do_animation
+        do_the_animation(info={
+            'img_dir': img_dir, 'img_np': env.img_np, 'paths_dict': paths_dict, 'i_agent': alg.agents_dict['agent_0'],
+            'max_time': len(max(list(paths_dict.values()))), 'alg_name': alg.name
+        }, to_save=to_save_animation, to_animate=to_do_animation)
         print(f'The run {i_problem + 1} is finished\n{solved=}')
 
 # if to_render:

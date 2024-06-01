@@ -359,7 +359,7 @@ if __name__ == '__main__':
 # a_next_node = get_min_h_nei_node(agent.curr_node, given_goal_node, self.nodes_dict, self.h_dict)
 # if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
 #     # calc single PIBT step
-#     if agent.priority == 0:
+#     if agent.future_rank == 0:
 #         print(f'\npibt step')
 #     # blocked_nodes, newly_planned_agents = update_blocked_nodes(self.agents, iteration, blocked_nodes, newly_planned_agents)
 #     blocked_nodes, _ = get_blocked_nodes(self.agents, iteration)
@@ -367,7 +367,7 @@ if __name__ == '__main__':
 #                         curr_n_name_to_agent_dict, curr_n_name_to_agent_list, iteration, to_assert=to_assert)
 # else:
 #     # calc evacuation of agents from the corridor
-#     if agent.priority == 0:
+#     if agent.future_rank == 0:
 #         print(f'\nev step')
 #     self.calc_ep_steps(agent, given_goal_node, config_from, a_non_sv_nodes_np, iteration,
 #                        to_assert=to_assert)

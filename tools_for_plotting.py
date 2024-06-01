@@ -287,10 +287,17 @@ def plot_return_paths(ax, info):
         occupied_nodes = info['occupied_nodes']
         for n in occupied_nodes:
             field[n.x, n.y] = 0
+    if 'agents_to_return_dict' in info:
+        agents_to_return_dict = info['agents_to_return_dict']
+        i_agent = info['i_agent']
+        agents_to_plot = agents_to_return_dict[i_agent.name]
+    else:
+        agents_to_plot = agents
+
     ax.imshow(field, origin='lower', cmap='binary')
 
     others_y_list, others_x_list, others_cm_list = [], [], []
-    for agent in agents:
+    for agent in agents_to_plot:
         if 'i_agent' in info and info['i_agent'] == agent:
             continue
         rn_x_list, rn_y_list = [], []

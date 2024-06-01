@@ -52,6 +52,14 @@ class AlgCgar2Mapf(AlgGeneric):
         solved: List[AlgCgar2MapfAgent] = [a for a in self.agents if a.goal_node == a.curr_node]
         return len(solved)
 
+    @property
+    def agents_to_return_dict_names(self):
+        agents_to_return_dict_names = {}
+        for k, v in self.agents_to_return_dict.items():
+            new_v = [a.name for a in v]
+            agents_to_return_dict_names[k] = new_v
+        return agents_to_return_dict_names
+
     def initialize_problem(self, obs: Dict[str, Any]) -> None:
         # create agents
         self.agents = []
@@ -105,7 +113,13 @@ class AlgCgar2Mapf(AlgGeneric):
             if to_render and iteration >= 0:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
-                plot_info = {'img_np': self.img_np, 'agents': self.agents, 'i_agent': i_agent, 'non_sv_nodes_np': non_sv_nodes_np}
+                plot_info = {
+                    'img_np': self.img_np,
+                    'agents': self.agents,
+                    'i_agent': i_agent,
+                    'agents_to_return_dict': self.agents_to_return_dict,
+                    'non_sv_nodes_np': non_sv_nodes_np
+                }
                 plot_step_in_env(ax[0], plot_info)
                 plot_return_paths(ax[1], plot_info)
                 plt.pause(plot_rate)
@@ -128,7 +142,7 @@ class AlgCgar2Mapf(AlgGeneric):
         return True
 
     def update_priorities(self, iteration: int, to_assert: bool = False) -> None:
-        self.agents.sort(key=lambda a: a.priority)
+        self.agents.sort(key=lambda a: a.future_rank)
         unfinished: List[AlgCgar2MapfAgent] = []
         finished: List[AlgCgar2MapfAgent] = []
         for agent in self.agents:
@@ -143,11 +157,20 @@ class AlgCgar2Mapf(AlgGeneric):
     def build_next_steps(self, iteration: int, to_assert: bool = False) -> None:
 
         config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list = self.get_preparations(iteration)
+        update_status(self.agents)
+        future_captured_node_names: List[str] = []
+        future_captured_node_names = update_future_captured_node_names(future_captured_node_names, self.agents, iteration)
 
-        for agent in self.agents:
-            # stay_where_you_are(agent)
+        # update current rank
+        for curr_rank, agent in enumerate(self.agents):
+            agent.curr_rank = curr_rank
+
+        for curr_rank, agent in enumerate(self.agents):
+            hr_agents = self.agents[:curr_rank]
+            lr_agents = self.agents[curr_rank + 1:]
+
             to_resume, cc_stage_info = continuation_check_stage(
-                agent, iteration, curr_n_name_to_a_dict, curr_n_name_to_a_list, goals_dict,
+                agent, hr_agents, lr_agents, iteration, curr_n_name_to_a_dict, curr_n_name_to_a_list, goals_dict,
                 self.agents_to_return_dict, self.agents, self.agents_dict, self.img_np, self.h_dict,
                 self.non_sv_nodes_with_blocked_np, self.nodes, self.nodes_dict,
             )
@@ -159,21 +182,27 @@ class AlgCgar2Mapf(AlgGeneric):
             ]
 
             calc_step_stage(
-                agent, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
-                self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.nodes, self.nodes_dict,
+                agent, hr_agents, lr_agents, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+                self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.agents_to_return_dict, self.nodes, self.nodes_dict,
                 self.img_np, self.h_dict
             )
 
             # Get newly-moved agents
             newly_planned_agents: List[AlgCgar2MapfAgent] = [
-                a for a in unplanned_agents if len(a.path) - 1 > iteration - 1
+                a for a in unplanned_agents if len(a.path) - 1 >= iteration
             ]
+            set_parent_of_path(newly_planned_agents, parent=agent)
+            future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
 
             return_agents_stage(
-                agent, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
-                newly_planned_agents,
+                agent, hr_agents, lr_agents, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+                newly_planned_agents, future_captured_node_names,
                 self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.agents_to_return_dict,
             )
+
+        for agent in self.agents:
+            if len(agent.path) - 1 == iteration - 1:
+                stay_where_you_are(agent)
 
     def execute_next_steps(self, iteration: int, to_assert: bool = False) -> None:
         for agent in self.agents:

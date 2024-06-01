@@ -89,7 +89,7 @@ class AlgCgar3SeqMapf(AlgGeneric):
             self.agents, last_n_name_to_a_dict, last_n_name_to_a_list = order_the_agents(self.agents)
 
             main_agent = self.agents[0]
-            assert main_agent.priority == 0
+            assert main_agent.curr_rank == 0
 
             to_resume = cgar_conditions_check(
                 main_agent, last_n_name_to_a_dict, last_n_name_to_a_list,

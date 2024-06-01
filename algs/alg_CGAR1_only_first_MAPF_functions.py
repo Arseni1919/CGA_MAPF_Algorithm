@@ -800,7 +800,7 @@ def all_others_if_at_goal_then_stay(
 #     if len(distur_a.path) - 1 >= iteration:
 #         return [], []
 #     if distur_a.alt_goal_node is not None:
-#         assert distur_a.setting_agent_name == main_agent.name
+#         assert distur_a.parent_of_goal_node_name == main_agent.name
 #     blocked_nodes = get_blocked_nodes_for_ev(agents, iteration)
 #     goals_list: List[Node] = [a.get_goal_node() for a in agents if a != distur_a]
 #     blocked_nodes.extend(goals_list)

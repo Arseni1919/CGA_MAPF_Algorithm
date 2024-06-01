@@ -8,7 +8,7 @@ from algs.alg_CGAR import get_min_h_nei_node, find_ev_path, push_ev_agents, push
 class AlgCgar3SeqMapfAgent:
     def __init__(self, num: int, start_node: Node, goal_node: Node, nodes: List[Node], nodes_dict: Dict[str, Node]):
         self.num = num
-        self.priority = num
+        self.curr_rank = num
         self.start_node: Node = start_node
         self.prev_node: Node = start_node
         self.curr_node: Node = start_node
@@ -150,7 +150,7 @@ def check_configs(
 
 def update_priority_numbers(agents: Deque[AlgCgar3SeqMapfAgent]):
     for i_priority, agent in enumerate(agents):
-        agent.priority = i_priority
+        agent.curr_rank = i_priority
 
 
 def order_the_agents(
@@ -559,7 +559,7 @@ def update_waiting_tables(
             if n_name in fs_to_a_dict:
                 agent_on_road = fs_to_a_dict[n_name]
                 agent_on_road_name = agent_on_road.name
-                if agent_on_road.priority != 0 and agent_on_road != affected_agent:
+                if agent_on_road.curr_rank != 0 and agent_on_road != affected_agent:
                     assert agent_on_road in agents_with_new_plan
                     aor_n_name, aor_i, aor_a_list, aor_n = agent_on_road.return_road[-1]
                     assert aor_n_name == n_name
@@ -739,7 +739,7 @@ def run_cgar(
             a_next_node = get_min_h_nei_node(main_agent.curr_node, main_goal_node, nodes_dict, h_dict)
             if main_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
                 # calc single PIBT step
-                assert main_agent.priority == 0
+                assert main_agent.curr_rank == 0
                 blocked_nodes = [main_agent.get_goal_node()]
                 calc_pibt_step(main_agent, agents, nodes_dict, h_dict, main_goal_node, blocked_nodes, config_from,
                                config_to, goals_dict, curr_n_name_to_agent_dict, curr_n_name_to_agent_list,
