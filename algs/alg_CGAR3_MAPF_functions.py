@@ -227,6 +227,57 @@ def get_blocked_nodes_from_map(nodes: List[Node], blocked_map: np.ndarray, do_no
     return blocked_nodes
 
 
+def init_blocked_map(
+    agents: List[AlgCgar3MapfAgent],
+    img_np: np.ndarray,
+    iteration: int,
+) -> np.ndarray:
+    blocked_map: np.ndarray = np.zeros(img_np.shape)
+    # Block all future steps of everyone
+    for agent in agents:
+        if len(agent.path) - 1 >= iteration:
+            future_path = agent.path[iteration - 1:]
+            for n in future_path:
+                blocked_map[n.x, n.y] = 1
+    return blocked_map
+
+
+def update_blocked_map(
+    blocked_map: np.ndarray,
+    main_agent: AlgCgar3MapfAgent,
+    hr_agents: List[AlgCgar3MapfAgent],
+    newly_planned_agents: List[AlgCgar3MapfAgent],
+    agents_to_return_dict: Dict[str, List[AlgCgar3MapfAgent]],
+    iteration: int,
+) -> np.ndarray:
+
+    for agent in newly_planned_agents:
+        future_path = agent.path[iteration - 1:]
+        for n in future_path:
+            blocked_map[n.x, n.y] = 1
+
+    # Block return paths set by HR-agents
+    # for n in main_agent.return_road_nodes:
+    #     blocked_map[n.x, n.y] = 1
+    # hr_return_agents = agents_to_return_dict[main_agent.name]
+    # for sub_a in hr_return_agents:
+    #     for n in sub_a.return_road_nodes:
+    #         blocked_map[n.x, n.y] = 1
+    for curr_priority, hr_agent in enumerate(hr_agents):
+
+        for n in hr_agent.return_road_nodes:
+            blocked_map[n.x, n.y] = 1
+
+            # if blocked_map[27, 9]:
+            #     print()
+
+        hr_return_agents = agents_to_return_dict[hr_agent.name]
+        for sub_a in hr_return_agents:
+            for n in sub_a.return_road_nodes:
+                blocked_map[n.x, n.y] = 1
+    return blocked_map
+
+
 def get_blocked_map(
     main_agent: AlgCgar3MapfAgent,
     hr_agents: List[AlgCgar3MapfAgent],
@@ -251,16 +302,25 @@ def get_blocked_map(
             for n in future_path:
                 blocked_map[n.x, n.y] = 1
 
+            # if blocked_map[27, 9]:
+            #     print()
+
     # Block return paths set by HR-agents
     for curr_priority, hr_agent in enumerate(hr_agents):
 
         for n in hr_agent.return_road_nodes:
             blocked_map[n.x, n.y] = 1
 
+            # if blocked_map[27, 9]:
+            #     print()
+
         hr_return_agents = agents_to_return_dict[hr_agent.name]
         for sub_a in hr_return_agents:
             for n in sub_a.return_road_nodes:
                 blocked_map[n.x, n.y] = 1
+
+                # if blocked_map[27, 9]:
+                #     print()
 
         # # Block original goal locations of HR-agents
         # i_original_goal_node = hr_agent.goal_node
