@@ -212,11 +212,22 @@ def set_parent_of_path(newly_planned_agents: List[AlgCgar3MapfAgent], parent: Al
         a.parent_of_path = parent
 
 
-def get_blocked_nodes_from_map(nodes: List[Node], blocked_map: np.ndarray, do_not_block_curr_nodes: bool = False) -> List[Node]:
+def get_blocked_nodes_from_map(nodes: List[Node], nodes_dict: Dict[str, Node], blocked_map: np.ndarray, do_not_block_curr_nodes: bool = False) -> List[Node]:
     blocked_nodes = []
-    for n in nodes:
-        if blocked_map[n.x, n.y] == 1:
-            blocked_nodes.append(n)
+    indices = np.where(blocked_map == 1)
+    for x, y in zip(indices[0], indices[1]):
+        n = nodes_dict[f'{x}_{y}']
+        blocked_nodes.append(n)
+
+    # for x in range(blocked_map.shape[0]):
+    #     for y in range(blocked_map.shape[1]):
+    #         if blocked_map[x, y] == 1:
+    #             n = nodes_dict[f'{x}_{y}']
+    #             blocked_nodes.append(n)
+
+    # for n in nodes:
+    #     if blocked_map[n.x, n.y] == 1:
+    #         blocked_nodes.append(n)
     if do_not_block_curr_nodes:
         # for agent in agents:
         #     if len(agent.path) - 1 >= iteration:
@@ -871,12 +882,6 @@ config_to: Dict[str, Node], agents_dict: Dict[str, AlgCgar3MapfAgent],
         if config_n.xy_name in agents_to_return_nodes_names:
             to_remove_return_paths = True
             break
-        # for n in agent.path[iteration - 1:]:
-        #     if n.xy_name in agents_to_return_nodes_names:
-        #         to_remove_return_paths = True
-        #         break
-        # if to_remove_return_paths:
-        #     break
 
     # to_remove_return_paths = False
     # for agent in agents:
@@ -1068,7 +1073,7 @@ def calc_step_stage(
     given_goal_node = main_agent.get_goal_node()
     a_non_sv_nodes_np = non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
     # blocked_map: np.ndarray = get_blocked_map(main_agent, hr_agents, lr_agents, agents, agents_to_return_dict, img_np, iteration)
-    blocked_nodes = get_blocked_nodes_from_map(nodes, blocked_map)
+    blocked_nodes = get_blocked_nodes_from_map(nodes, nodes_dict, blocked_map)
 
     a_next_node = get_min_h_nei_node(main_agent.curr_node, given_goal_node, nodes_dict, h_dict)
     if a_non_sv_nodes_np[a_next_node.x, a_next_node.y]:
