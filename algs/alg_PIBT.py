@@ -153,7 +153,7 @@ class AlgPIBTAgent:
         self.path: List[Node] = [start_node]
         self.arrived: bool = False
         self.init_priority = random.random()
-        self.priority = self.init_priority
+        self.curr_rank = self.init_priority
 
     @property
     def name(self):
@@ -260,13 +260,13 @@ class AlgPIBT(AlgGeneric):
                 agent.curr_node = next_node
                 if agent.curr_node != agent.goal_node:
                     finished = False
-                    agent.priority += 1
+                    agent.curr_rank += 1
                 else:
-                    agent.priority = agent.init_priority
+                    agent.curr_rank = agent.init_priority
                     agents_finished.append(agent)
 
             # unfinished first
-            self.agents.sort(key=lambda a: a.future_rank, reverse=True)
+            self.agents.sort(key=lambda a: a.curr_rank, reverse=True)
 
             # stats
             pass

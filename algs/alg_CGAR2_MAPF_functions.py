@@ -21,8 +21,8 @@ from algs.alg_CGAR import get_min_h_nei_node, build_corridor_from_nodes, find_ev
 class AlgCgar2MapfAgent:
     def __init__(self, num: int, start_node: Node, goal_node: Node, nodes: List[Node], nodes_dict: Dict[str, Node]):
         self.num = num
-        self.future_rank = num
         self.curr_rank = num
+        self.future_rank = num
         self.status = ''
         self.start_node: Node = start_node
         self.prev_node: Node = start_node
