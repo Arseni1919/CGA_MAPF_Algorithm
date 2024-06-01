@@ -1,9 +1,9 @@
-from algs.alg_CGAR2_MAPF_functions import *
+from algs.alg_CGAR3_MAPF_functions import *
 
 
-class AlgCgar2Mapf(AlgGeneric):
+class AlgCgar3Mapf(AlgGeneric):
 
-    name = 'CGAR2-MAPF'
+    name = 'CGAR3-MAPF'
 
     def __init__(self, env: SimEnvMAPF):
         super().__init__()
@@ -22,10 +22,10 @@ class AlgCgar2Mapf(AlgGeneric):
         self.h_dict: Dict[str, np.ndarray] = self.env.h_dict
 
         # for the problem
-        self.agents: List[AlgCgar2MapfAgent] = []
-        self.agents_dict: Dict[str, AlgCgar2MapfAgent] = {}
-        self.agents_num_dict: Dict[int, AlgCgar2MapfAgent] = {}
-        self.agents_to_return_dict: Dict[str, List[AlgCgar2MapfAgent]] = {}
+        self.agents: List[AlgCgar3MapfAgent] = []
+        self.agents_dict: Dict[str, AlgCgar3MapfAgent] = {}
+        self.agents_num_dict: Dict[int, AlgCgar3MapfAgent] = {}
+        self.agents_to_return_dict: Dict[str, List[AlgCgar3MapfAgent]] = {}
         self.n_agents = 0
 
         # logs
@@ -49,7 +49,7 @@ class AlgCgar2Mapf(AlgGeneric):
 
     @property
     def n_solved(self) -> int:
-        solved: List[AlgCgar2MapfAgent] = [a for a in self.agents if a.goal_node == a.curr_node]
+        solved: List[AlgCgar3MapfAgent] = [a for a in self.agents if a.goal_node == a.curr_node]
         return len(solved)
 
     @property
@@ -70,7 +70,7 @@ class AlgCgar2Mapf(AlgGeneric):
             num = obs_agent.num
             start_node = self.nodes_dict[obs_agent.start_node_name]
             goal_node = self.nodes_dict[obs_agent.goal_node_name]
-            new_agent = AlgCgar2MapfAgent(
+            new_agent = AlgCgar3MapfAgent(
                 num=num, start_node=start_node, goal_node=goal_node, nodes=self.nodes, nodes_dict=self.nodes_dict
             )
             self.agents.append(new_agent)
@@ -102,9 +102,9 @@ class AlgCgar2Mapf(AlgGeneric):
             # UPDATE ORDER
             self.update_priorities(iteration, to_assert)
             # BUILD NEXT STEP
-            self.build_next_steps(iteration, to_assert)
+            config_to: Dict[str, Node] = self.build_next_steps(iteration, to_assert)
             # EXECUTE THE STEP
-            self.execute_next_steps(iteration, to_assert)
+            self.execute_next_steps(config_to, iteration, to_assert)
 
             # PRINT
             runtime = time.time() - start_time
@@ -143,8 +143,8 @@ class AlgCgar2Mapf(AlgGeneric):
 
     def update_priorities(self, iteration: int, to_assert: bool = False) -> None:
         self.agents.sort(key=lambda a: a.future_rank)
-        unfinished: List[AlgCgar2MapfAgent] = []
-        finished: List[AlgCgar2MapfAgent] = []
+        unfinished: List[AlgCgar3MapfAgent] = []
+        finished: List[AlgCgar3MapfAgent] = []
         for agent in self.agents:
             return_agents = self.agents_to_return_dict[agent.name]
             if agent.curr_node == agent.get_goal_node() and len(return_agents) == 0:
@@ -153,56 +153,70 @@ class AlgCgar2Mapf(AlgGeneric):
                 unfinished.append(agent)
         self.agents = [*unfinished, *finished]
         update_ranks(self.agents)
+        update_status(self.agents)
 
-    def build_next_steps(self, iteration: int, to_assert: bool = False) -> None:
+    def build_next_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, Node]:
 
         config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list = self.get_preparations(iteration)
-        update_status(self.agents)
         future_captured_node_names: List[str] = []
         future_captured_node_names = update_future_captured_node_names(future_captured_node_names, self.agents, iteration)
 
         for curr_rank, agent in enumerate(self.agents):
+            assert agent.curr_rank == curr_rank
             hr_agents = self.agents[:curr_rank]
             lr_agents = self.agents[curr_rank + 1:]
+            blocked_map: np.ndarray = get_blocked_map(
+                agent, hr_agents, lr_agents, self.agents, self.agents_to_return_dict, self.img_np, iteration
+            )
 
             to_resume, cc_stage_info = continuation_check_stage(
-                agent, hr_agents, lr_agents, iteration, curr_n_name_to_a_dict, curr_n_name_to_a_list, goals_dict,
+                agent, hr_agents, lr_agents, blocked_map, iteration,
+                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.agents_to_return_dict, self.agents, self.agents_dict, self.img_np, self.h_dict,
                 self.non_sv_nodes_with_blocked_np, self.nodes, self.nodes_dict,
             )
-            if not to_resume:
-                continue
 
-            unplanned_agents: List[AlgCgar2MapfAgent] = [
-                a for a in self.agents if len(a.path) - 1 == iteration - 1 and a != agent
+            unplanned_agents: List[AlgCgar3MapfAgent] = [
+                a for a in self.agents if a.name not in config_to and a != agent
             ]
 
-            calc_step_stage(
-                agent, hr_agents, lr_agents, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+            calc_step_stage_message = calc_step_stage(
+                agent, hr_agents, lr_agents, blocked_map, iteration,
+                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.agents_to_return_dict, self.nodes, self.nodes_dict,
                 self.img_np, self.h_dict
             )
 
             # Get newly-moved agents
-            newly_planned_agents: List[AlgCgar2MapfAgent] = [
-                a for a in unplanned_agents if len(a.path) - 1 >= iteration
-            ]
+            newly_planned_agents = get_newly_planned_agents(unplanned_agents, config_to, iteration)
             set_parent_of_path(newly_planned_agents, parent=agent)
             future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
 
             return_agents_stage(
-                agent, hr_agents, lr_agents, iteration, config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+                agent, hr_agents, lr_agents, iteration,
+                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 newly_planned_agents, future_captured_node_names,
                 self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.agents_to_return_dict,
             )
+            # name_to_check = 'agent_178'
+            # if name_to_check in config_to:
+            #     agent_to_check = self.agents_dict[name_to_check]
+            #     # print(agent_to_check.path_names[iteration:])
+            #     assert config_to[name_to_check] == agent_to_check.path[iteration]
 
         for agent in self.agents:
             if len(agent.path) - 1 == iteration - 1:
-                stay_where_you_are(agent)
+                stay_where_you_are(agent, config_to, iteration)
+                # assert config_to[agent.name] == agent.path[iteration]
 
-    def execute_next_steps(self, iteration: int, to_assert: bool = False) -> None:
+        for agent in self.agents:
+            assert config_to[agent.name] == agent.path[iteration]
+        return config_to
+
+    def execute_next_steps(self, config_to: Dict[str, Node], iteration: int, to_assert: bool = False) -> None:
         for agent in self.agents:
             agent.execute_simple_step(iteration)
+            assert config_to[agent.name] == agent.curr_node
 
     def get_preparations(self, iteration: int):
         # ---------------------------------------------- Preparations ---------------------------------------------- #
@@ -210,34 +224,27 @@ class AlgCgar2Mapf(AlgGeneric):
         config_from: Dict[str, Node] = {}
         config_to: Dict[str, Node] = {}
         goals_dict: Dict[str, Node] = {}
-        curr_n_name_to_a_dict: Dict[str, AlgCgar2MapfAgent] = {}
+        curr_n_name_to_a_dict: Dict[str, AlgCgar3MapfAgent] = {}
         curr_n_name_to_a_list: List[str] = []
         for agent in self.agents:
             config_from[agent.name] = agent.curr_node
             goals_dict[agent.name] = agent.get_goal_node()
             curr_n_name_to_a_dict[agent.curr_node.xy_name] = agent
-            assert agent.path[iteration-1] == agent.curr_node
+            if len(agent.path) - 1 >= iteration:
+                config_to[agent.name] = agent.path[iteration]
             heapq.heappush(curr_n_name_to_a_list, agent.curr_node.xy_name)
         # ---------------------------------------------------------------------------------------------------------- #
         return config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list
 
 
-@use_profiler(save_dir='../stats/alg_cgar2_mapf.pstat')
+@use_profiler(save_dir='../stats/alg_cgar3_mapf.pstat')
 def main():
-    # single_mapf_run(AlgCgaMapf, is_SACGR=True)
-    single_mapf_run(AlgCgar2Mapf, is_SACGR=False)
+    # single_mapf_run(AlgCgar3Mapf, is_SACGR=True)
+    single_mapf_run(AlgCgar3Mapf, is_SACGR=False)
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
 
 
 
