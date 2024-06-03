@@ -157,10 +157,11 @@ class AlgCgar3Mapf(AlgGeneric):
 
     def build_next_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, Node]:
 
-        config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list = self.get_preparations(iteration)
-        future_captured_node_names: List[str] = []
-        future_captured_node_names = update_future_captured_node_names(future_captured_node_names, self.agents, iteration)
-        blocked_map_2, r_blocked_map = init_blocked_map(self.agents, self.img_np, iteration)
+        (config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+         blocked_map_2, r_blocked_map, future_captured_node_names) = self.get_preparations(iteration)
+        # future_captured_node_names: List[str] = []
+        # future_captured_node_names = update_future_captured_node_names(future_captured_node_names, self.agents, iteration)
+        # blocked_map_2, r_blocked_map, future_captured_node_names = init_blocked_map(self.agents, self.img_np, iteration)
 
         for curr_rank, agent in enumerate(self.agents):
             assert agent.curr_rank == curr_rank
@@ -171,12 +172,15 @@ class AlgCgar3Mapf(AlgGeneric):
             #     agent, hr_agents, lr_agents, self.agents, self.agents_to_return_dict, self.img_np, iteration
             # )
             # assert (blocked_map == blocked_map_2).all()
-            ua_list: List[AlgCgar3MapfAgent] = [a for a in self.agents if len(a.path) - 1 == iteration - 1]
             unplanned_agents: List[AlgCgar3MapfAgent] = [
                 a for a in self.agents if a.name not in config_to and a != agent
             ]
+            ua_list = unplanned_agents[:]
+            if agent.name not in config_to:
+                ua_list.append(agent)
+            # ua_list: List[AlgCgar3MapfAgent] = [a for a in self.agents if len(a.path) - 1 == iteration - 1]
 
-            to_resume, cc_stage_info = continuation_check_stage(
+            to_resume, ccs_info = continuation_check_stage(
                 agent, hr_agents, lr_agents, blocked_map_2, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.agents_to_return_dict, self.agents, self.agents_dict, self.img_np, self.h_dict,
@@ -185,7 +189,7 @@ class AlgCgar3Mapf(AlgGeneric):
 
             calc_step_stage_message = calc_step_stage(
                 agent, hr_agents, lr_agents, blocked_map_2, r_blocked_map, iteration,
-                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, ccs_info,
                 self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.agents_to_return_dict, self.nodes, self.nodes_dict,
                 self.img_np, self.h_dict
             )
@@ -229,15 +233,26 @@ class AlgCgar3Mapf(AlgGeneric):
         goals_dict: Dict[str, Node] = {}
         curr_n_name_to_a_dict: Dict[str, AlgCgar3MapfAgent] = {}
         curr_n_name_to_a_list: List[str] = []
+        blocked_map: np.ndarray = np.zeros(self.img_np.shape)
+        r_blocked_map: np.ndarray = np.zeros(self.img_np.shape)
+        future_captured_node_names: List[str] = []
         for agent in self.agents:
             config_from[agent.name] = agent.curr_node
             goals_dict[agent.name] = agent.get_goal_node()
             curr_n_name_to_a_dict[agent.curr_node.xy_name] = agent
             if len(agent.path) - 1 >= iteration:
                 config_to[agent.name] = agent.path[iteration]
+                future_path = agent.path[iteration - 1:]
+                for n in future_path:
+                    blocked_map[n.x, n.y] = 1
+                    heapq.heappush(future_captured_node_names, n.xy_name)
+            else:
+                n = agent.path[iteration - 1]
+                heapq.heappush(future_captured_node_names, n.xy_name)
             heapq.heappush(curr_n_name_to_a_list, agent.curr_node.xy_name)
+
         # ---------------------------------------------------------------------------------------------------------- #
-        return config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list
+        return config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, blocked_map, r_blocked_map, future_captured_node_names
 
 
 @use_profiler(save_dir='../stats/alg_cgar3_mapf.pstat')
