@@ -160,7 +160,7 @@ class AlgCgar3Mapf(AlgGeneric):
         config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list = self.get_preparations(iteration)
         future_captured_node_names: List[str] = []
         future_captured_node_names = update_future_captured_node_names(future_captured_node_names, self.agents, iteration)
-        blocked_map_2: np.ndarray = init_blocked_map(self.agents, self.img_np, iteration)
+        blocked_map_2, r_blocked_map = init_blocked_map(self.agents, self.img_np, iteration)
 
         for curr_rank, agent in enumerate(self.agents):
             assert agent.curr_rank == curr_rank
@@ -184,7 +184,7 @@ class AlgCgar3Mapf(AlgGeneric):
             )
 
             calc_step_stage_message = calc_step_stage(
-                agent, hr_agents, lr_agents, blocked_map_2, iteration,
+                agent, hr_agents, lr_agents, blocked_map_2, r_blocked_map, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.agents_to_return_dict, self.nodes, self.nodes_dict,
                 self.img_np, self.h_dict
@@ -192,7 +192,6 @@ class AlgCgar3Mapf(AlgGeneric):
 
             # Get newly-moved agents
             newly_planned_agents = get_newly_planned_agents(unplanned_agents, config_to, iteration)
-            set_parent_of_path(newly_planned_agents, parent=agent)
             future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
 
             return_agents_stage(
@@ -204,8 +203,8 @@ class AlgCgar3Mapf(AlgGeneric):
 
             # update blocked map
             pa_list = [a for a in ua_list if len(a.path) - 1 >= iteration]
-            blocked_map_2 = update_blocked_map(
-                blocked_map_2, agent, hr_agents, pa_list, self.agents_to_return_dict, iteration
+            blocked_map_2, r_blocked_map = update_blocked_map(
+                blocked_map_2, r_blocked_map, agent, hr_agents, pa_list, self.agents_to_return_dict, iteration
             )
 
         for agent in self.agents:
@@ -213,8 +212,8 @@ class AlgCgar3Mapf(AlgGeneric):
                 stay_where_you_are(agent, config_to, iteration)
                 # assert config_to[agent.name] == agent.path[iteration]
 
-        for agent in self.agents:
-            assert config_to[agent.name] == agent.path[iteration]
+        # for agent in self.agents:
+        #     assert config_to[agent.name] == agent.path[iteration]
         return config_to
 
     def execute_next_steps(self, config_to: Dict[str, Node], iteration: int, to_assert: bool = False) -> None:

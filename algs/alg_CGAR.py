@@ -190,6 +190,44 @@ def find_ev_path[T](curr_node: Node, corridor: List[Node], nodes_dict: Dict[str,
     # raise RuntimeError('no way: cannot find an EV path')
 
 
+def find_ev_path_m[T](curr_node: Node, corridor: List[Node], nodes_dict: Dict[str, Node], blocked_map: np.ndarray, captured_free_nodes: List[Node], curr_n_name_to_a_dict: Dict[str, T], curr_n_name_to_a_list: List[str]) -> Tuple[List[Node], Node] | Tuple[None, None]:
+    open_list: Deque[Node] = deque([curr_node])
+    open_names_list_heap = [curr_node.xy_name]
+    heapq.heapify(open_names_list_heap)
+    closed_names_list_heap = []
+    # closed_names_list_heap = [n.xy_name for n in nodes_dict.values() if blocked_map[n.x, n.y]]
+    # heapq.heapify(closed_names_list_heap)
+    # blocked_nodes_names = [n.xy_name for n in blocked_nodes]
+
+    son_to_father_dict: Dict[str, Node | None] = {curr_node.xy_name: None}
+    iteration: int = 0
+    while len(open_list) > 0:
+        iteration += 1
+        next_node = open_list.popleft()
+        assert blocked_map[next_node.x, next_node.y] == 0
+        open_names_list_heap.remove(next_node.xy_name)
+        if next_node not in corridor and next_node not in captured_free_nodes and next_node.xy_name not in curr_n_name_to_a_list:
+            ev_path = unfold_path(next_node, son_to_father_dict)
+            return ev_path, next_node
+
+        for nei_name in next_node.neighbours:
+            # self ref
+            if nei_name == next_node.xy_name:
+                continue
+            if nei_name in open_names_list_heap:
+                continue
+            if nei_name in closed_names_list_heap:
+                continue
+            nei_node = nodes_dict[nei_name]
+            if blocked_map[nei_node.x, nei_node.y]:
+                continue
+            open_list.append(nei_node)
+            heapq.heappush(open_names_list_heap, nei_name)
+            son_to_father_dict[nei_name] = next_node
+        heapq.heappush(closed_names_list_heap, next_node.xy_name)
+    return None, None
+
+
 def get_last_visit_dict[T](given_list: List[Node], given_agents: List[T], iteration: int) -> Dict[str, int]:
     last_visit_dict = {n.xy_name: 0 for n in given_list}
     for m_agent in given_agents:

@@ -4,6 +4,8 @@ from functions import *
 
 
 def do_the_animation(info, to_save=False, to_animate=False):
+    if not to_save and not to_animate:
+        return
     img_np: np.ndarray = info['img_np']
     paths_dict: Dict[str, List[Any]] = info['paths_dict']
     max_time: int | float = info['max_time']
