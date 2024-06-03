@@ -544,7 +544,7 @@ def remove_return_paths_of_agent(
     prev_daddy_return_agents = agents_to_return_dict[agent_daddy.name]
     assert agent_daddy not in prev_daddy_return_agents
     # if len(prev_daddy_return_agents) > 0:
-    #     assert len(agent_daddy.return_road) == 0
+    #     assert len(parent_agent.return_road) == 0
     for a in prev_daddy_return_agents:
         a.remove_return_road()
     agents_to_return_dict[agent_daddy.name] = []
@@ -638,7 +638,7 @@ def update_waiting_tables(
             assert affected_agent.curr_node == affected_agent.return_road[-1][3]
             continue
         for n_name, i, a_list, n in affected_agent.return_road:
-            # inside fs_to_a_dict
+            # inside next_n_name_to_a_dict
             if n_name in fs_to_a_dict:
                 agent_on_road = fs_to_a_dict[n_name]
                 agent_on_road_name = agent_on_road.name

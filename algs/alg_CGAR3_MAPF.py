@@ -198,7 +198,7 @@ class AlgCgar3Mapf(AlgGeneric):
                 agent, hr_agents, lr_agents, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 newly_planned_agents, future_captured_node_names,
-                self.agents, self.agents_dict, self.nodes, self.nodes_dict, self.agents_to_return_dict,
+                self.agents, self.agents_dict, self.agents_to_return_dict,
             )
 
             # update blocked map

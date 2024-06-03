@@ -684,7 +684,7 @@ class AlgCgaMapf(AlgGeneric):
         # for a in unfinished:
         #     non_sv_np = self.non_sv_nodes_with_blocked_np[a.get_goal_node().x, a.get_goal_node().y]
         #     next_corridor = build_corridor_from_nodes(a.curr_node, a.get_goal_node(), self.nodes_dict, self.h_dict, non_sv_np)
-        #     if next_corridor[-1] == a.get_goal_node() and next_corridor[-1].xy_name in fs_to_a_dict:
+        #     if next_corridor[-1] == a.get_goal_node() and next_corridor[-1].xy_name in next_n_name_to_a_dict:
         #         not_goal_free_list.append(a)
         #     else:
         #         goal_free_list.append(a)

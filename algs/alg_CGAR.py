@@ -22,7 +22,7 @@ def update_waiting_tables[T](agents: List[T], fs_to_a_dict: Dict[str, T], from_n
             assert affected_agent.curr_node == affected_agent.return_road[-1][3]
             continue
         for n_name, i, a_list, n in affected_agent.return_road:
-            # inside fs_to_a_dict
+            # inside next_n_name_to_a_dict
             if n_name in fs_to_a_dict:
                 agent_on_road = fs_to_a_dict[n_name]
                 agent_on_road_name = agent_on_road.name
@@ -958,7 +958,7 @@ if __name__ == '__main__':
     #                 next_possible_n_visitors.remove(next_agent.name)
     #                 continue
     #
-    #             agent_to_push_name = from_n_to_a_dict[next_possible_node_name]
+    #             agent_to_push_name = curr_n_name_to_a_dict[next_possible_node_name]
     #             agent_to_push = agents_dict[agent_to_push_name]
     #             if agent_to_push_name in config_to:
     #                 assert config_to[agent_to_push_name] != next_possible_node
