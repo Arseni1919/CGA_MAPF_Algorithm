@@ -180,6 +180,7 @@ class AlgCgar3Mapf(AlgGeneric):
                 ua_list.append(agent)
             # ua_list: List[AlgCgar3MapfAgent] = [a for a in self.agents if len(a.path) - 1 == iteration - 1]
 
+            # CHECK_STAGE
             to_resume, ccs_info = continuation_check_stage(
                 agent, hr_agents, lr_agents, blocked_map_2, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
@@ -187,6 +188,7 @@ class AlgCgar3Mapf(AlgGeneric):
                 self.non_sv_nodes_with_blocked_np, self.nodes, self.nodes_dict,
             )
 
+            # STEP_STAGE
             calc_step_stage_message = calc_step_stage(
                 agent, hr_agents, lr_agents, blocked_map_2, r_blocked_map, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, ccs_info,
@@ -198,6 +200,7 @@ class AlgCgar3Mapf(AlgGeneric):
             newly_planned_agents = get_newly_planned_agents(unplanned_agents, config_to, iteration)
             future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
 
+            # RETURN_STAGE
             return_agents_stage(
                 agent, hr_agents, lr_agents, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,

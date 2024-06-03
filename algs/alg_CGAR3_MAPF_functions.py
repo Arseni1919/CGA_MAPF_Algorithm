@@ -1036,10 +1036,10 @@ def continuation_check_stage(
     """
     returns: to_resume: bool, info: dict
     """
-
+    # TODO: get rid of stay_where_you_are as much as possible
     # if the agent has a plan
     if main_agent.name in config_to:
-        return True, {'message': 'in config_to', 'ccs_status': 1}
+        return True, {'message': 'in config_to', 'ccs_status': 1, 'do_step_stage': False, 'do_return_stage': True}
 
     # If the agent is at its goal and has return paths to finish
     if main_agent.curr_node == main_agent.get_goal_node():
