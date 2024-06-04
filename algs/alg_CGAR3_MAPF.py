@@ -110,7 +110,7 @@ class AlgCgar3Mapf(AlgGeneric):
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
             # RENDER
-            if to_render and iteration >= 0:
+            if to_render and iteration >= 200:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
                 plot_info = {
@@ -181,7 +181,7 @@ class AlgCgar3Mapf(AlgGeneric):
             # ua_list: List[AlgCgar3MapfAgent] = [a for a in self.agents if len(a.path) - 1 == iteration - 1]
 
             # CHECK_STAGE
-            to_resume, ccs_info = continuation_check_stage(
+            to_resume, check_stage_info = continuation_check_stage(
                 agent, hr_agents, lr_agents, blocked_map_2, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.agents_to_return_dict, self.agents, self.agents_dict, self.img_np, self.h_dict,
@@ -191,7 +191,7 @@ class AlgCgar3Mapf(AlgGeneric):
             # STEP_STAGE
             calc_step_stage_message = calc_step_stage(
                 agent, hr_agents, lr_agents, blocked_map_2, r_blocked_map, iteration,
-                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, ccs_info,
+                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, check_stage_info,
                 self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.agents_to_return_dict, self.nodes, self.nodes_dict,
                 self.img_np, self.h_dict
             )
@@ -200,9 +200,19 @@ class AlgCgar3Mapf(AlgGeneric):
             newly_planned_agents = get_newly_planned_agents(unplanned_agents, config_to, iteration)
             future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
 
+            # g = self.nodes_dict['23_3']
+            # g_name = g.xy_name
+            # agent_on_goal = self.agents_dict['agent_201']
+            # if g in agent_on_goal.path:
+            #     print('', end='')
+            #
+            # if agent.curr_rank == 0 and f'{g.x}_{g.y}' in curr_n_name_to_a_list:
+            #     agent_on_goal = curr_n_name_to_a_dict[f'{g.x}_{g.y}']
+            #     print('', end='')
+
             # RETURN_STAGE
             return_agents_stage(
-                agent, hr_agents, lr_agents, iteration,
+                agent, hr_agents, lr_agents, iteration, check_stage_info,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 newly_planned_agents, future_captured_node_names,
                 self.agents, self.agents_dict, self.agents_to_return_dict,
