@@ -1,3 +1,5 @@
+import random
+
 from algs.alg_CGAR3_MAPF_functions import *
 
 
@@ -110,7 +112,7 @@ class AlgCgar3Mapf(AlgGeneric):
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
             # RENDER
-            if to_render and iteration >= 200:
+            if to_render and iteration >= 50:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
                 plot_info = {
@@ -144,6 +146,7 @@ class AlgCgar3Mapf(AlgGeneric):
     def update_priorities(self, iteration: int, to_assert: bool = False) -> None:
         self.agents.sort(key=lambda a: a.future_rank)
         unfinished: List[AlgCgar3MapfAgent] = []
+        finishing: List[AlgCgar3MapfAgent] = []
         finished: List[AlgCgar3MapfAgent] = []
         for agent in self.agents:
             return_agents = self.agents_to_return_dict[agent.name]
@@ -151,7 +154,10 @@ class AlgCgar3Mapf(AlgGeneric):
                 finished.append(agent)
             else:
                 unfinished.append(agent)
+        random.shuffle(finished)
+
         self.agents = [*unfinished, *finished]
+
         update_ranks(self.agents)
         update_status(self.agents)
 
@@ -165,8 +171,8 @@ class AlgCgar3Mapf(AlgGeneric):
 
         for curr_rank, agent in enumerate(self.agents):
             assert agent.curr_rank == curr_rank
-            hr_agents = self.agents[:curr_rank]
-            lr_agents = self.agents[curr_rank + 1:]
+            # hr_agents = self.agents[:curr_rank]
+            # lr_agents = self.agents[curr_rank + 1:]
 
             # blocked_map: np.ndarray = get_blocked_map(
             #     agent, hr_agents, lr_agents, self.agents, self.agents_to_return_dict, self.img_np, iteration
@@ -182,7 +188,7 @@ class AlgCgar3Mapf(AlgGeneric):
 
             # CHECK_STAGE
             to_resume, check_stage_info = continuation_check_stage(
-                agent, hr_agents, lr_agents, blocked_map_2, iteration,
+                agent, blocked_map_2, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 self.agents_to_return_dict, self.agents, self.agents_dict, self.img_np, self.h_dict,
                 self.non_sv_nodes_with_blocked_np, self.nodes, self.nodes_dict,
@@ -190,29 +196,19 @@ class AlgCgar3Mapf(AlgGeneric):
 
             # STEP_STAGE
             calc_step_stage_message = calc_step_stage(
-                agent, hr_agents, lr_agents, blocked_map_2, r_blocked_map, iteration,
+                agent, blocked_map_2, r_blocked_map, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, check_stage_info,
                 self.non_sv_nodes_with_blocked_np, self.agents, self.agents_dict, self.agents_to_return_dict, self.nodes, self.nodes_dict,
                 self.img_np, self.h_dict
             )
 
             # Get newly-moved agents
-            newly_planned_agents = get_newly_planned_agents(unplanned_agents, config_to, iteration)
-            future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
-
-            # g = self.nodes_dict['23_3']
-            # g_name = g.xy_name
-            # agent_on_goal = self.agents_dict['agent_201']
-            # if g in agent_on_goal.path:
-            #     print('', end='')
-            #
-            # if agent.curr_rank == 0 and f'{g.x}_{g.y}' in curr_n_name_to_a_list:
-            #     agent_on_goal = curr_n_name_to_a_dict[f'{g.x}_{g.y}']
-            #     print('', end='')
+            newly_planned_agents, future_captured_node_names = get_newly_planned_agents(unplanned_agents, future_captured_node_names, iteration)
+            # future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
 
             # RETURN_STAGE
-            return_agents_stage(
-                agent, hr_agents, lr_agents, iteration, check_stage_info,
+            return_stage_message = return_agents_stage(
+                agent, iteration, check_stage_info,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
                 newly_planned_agents, future_captured_node_names,
                 self.agents, self.agents_dict, self.agents_to_return_dict,
@@ -221,16 +217,12 @@ class AlgCgar3Mapf(AlgGeneric):
             # update blocked map
             pa_list = [a for a in ua_list if len(a.path) - 1 >= iteration]
             blocked_map_2, r_blocked_map = update_blocked_map(
-                blocked_map_2, r_blocked_map, agent, hr_agents, pa_list, self.agents_to_return_dict, iteration
+                blocked_map_2, r_blocked_map, agent, pa_list, self.agents_to_return_dict, iteration
             )
 
         for agent in self.agents:
             if len(agent.path) - 1 == iteration - 1:
                 stay_where_you_are(agent, config_to, iteration)
-                # assert config_to[agent.name] == agent.path[iteration]
-
-        # for agent in self.agents:
-        #     assert config_to[agent.name] == agent.path[iteration]
         return config_to
 
     def execute_next_steps(self, config_to: Dict[str, Node], iteration: int, to_assert: bool = False) -> None:
@@ -276,6 +268,15 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# last_n_name_to_a_list = [a.path[-1].xy_name for a in self.agents]
+# goal_free_list: List[AlgCgar3MapfAgent] = [
+#     a for a in unfinished if a.get_goal_node().xy_name not in last_n_name_to_a_list
+# ]
+# not_goal_free_list: List[AlgCgar3MapfAgent] = [
+#     a for a in unfinished if a.get_goal_node().xy_name in last_n_name_to_a_list
+# ]
+# self.agents = [*finishing, *goal_free_list, *not_goal_free_list, *finished]
 
 
 

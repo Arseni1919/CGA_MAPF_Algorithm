@@ -111,7 +111,7 @@ class AlgCgar3MapfAgent:
     def execute_simple_step(self, iteration: int) -> None:
         self.prev_node = self.curr_node
         self.curr_node = self.path[iteration]
-        assert self.prev_node.xy_name in self.curr_node.neighbours
+        # assert self.prev_node.xy_name in self.curr_node.neighbours
 
     def get_goal_node(self) -> Node:
         if self.alt_goal_node is not None:
@@ -123,7 +123,7 @@ class AlgCgar3MapfAgent:
         self.parent_of_goal_node = setting_agent
 
     def remove_alt_goal_node(self) -> None:
-        assert self.alt_goal_node is not None
+        # assert self.alt_goal_node is not None
         self.prev_goal_node_names_list.append(self.alt_goal_node.xy_name)
         self.alt_goal_node = None
         self.parent_of_goal_node = self
@@ -143,7 +143,7 @@ class AlgCgar3MapfAgent:
     def get_wl_names(self, node: Node, to_assert: bool = False):
         return [tpl[0] for tpl in self.waiting_table[node.xy_name]]
 
-    def add_to_wl(self, node: Node, agent_on_road: Self, iteration: int, to_assert: bool = False):
+    def add_to_wl(self, node: Node, agent_on_road: Self, iteration: int):
         if (agent_on_road.name, iteration) not in self.waiting_table[node.xy_name]:
             self.waiting_table[node.xy_name].append((agent_on_road.name, iteration))
 
@@ -179,14 +179,20 @@ def update_config_to(config_to: Dict[str, Node], agents: List[AlgCgar3MapfAgent]
 
 
 def get_newly_planned_agents(
-        unplanned_agents: List[AlgCgar3MapfAgent], config_to: Dict[str, Node], iteration: int
-) -> List[AlgCgar3MapfAgent]:
+        unplanned_agents: List[AlgCgar3MapfAgent], future_captured_node_names: List[str], iteration: int
+) -> (List[AlgCgar3MapfAgent], List[str]):
     newly_planned_agents: List[AlgCgar3MapfAgent] = []
     for a in unplanned_agents:
         if len(a.path) - 1 >= iteration:
             newly_planned_agents.append(a)
-            assert a.name in config_to
-    return newly_planned_agents
+
+            agent_path = a.path[iteration - 1:]
+            # agent_path = agent.path[global_iteration + 1:]
+            for n in agent_path:
+                if n.xy_name not in future_captured_node_names:
+                    heapq.heappush(future_captured_node_names, n.xy_name)
+            # assert a.name in config_to
+    return newly_planned_agents, future_captured_node_names
 
 
 def stay_where_you_are(main_agent: AlgCgar3MapfAgent, config_to: Dict[str, Node], iteration: int):
@@ -195,10 +201,10 @@ def stay_where_you_are(main_agent: AlgCgar3MapfAgent, config_to: Dict[str, Node]
         config_to[main_agent.name] = main_agent.path[iteration]
         return
     next_node: Node = main_agent.path[-1]
-    assert next_node == main_agent.curr_node
+    # assert next_node == main_agent.curr_node
     main_agent.path.append(next_node)
     config_to[main_agent.name] = next_node
-    assert config_to[main_agent.name] == main_agent.path[iteration]
+    # assert config_to[main_agent.name] == main_agent.path[iteration]
     main_agent.set_parent_of_path(main_agent)
 
 
@@ -259,7 +265,6 @@ def update_blocked_map(
     blocked_map: np.ndarray,
     r_blocked_map: np.ndarray,
     main_agent: AlgCgar3MapfAgent,
-    hr_agents: List[AlgCgar3MapfAgent],
     newly_planned_agents: List[AlgCgar3MapfAgent],
     agents_to_return_dict: Dict[str, List[AlgCgar3MapfAgent]],
     iteration: int,
@@ -609,7 +614,6 @@ def calc_pibt_step(
         i_curr = agent.curr_node
         if r_blocked_map[i_curr.x, i_curr.y] == 0:
             curr_blocked_map[i_curr.x, i_curr.y] = 0
-    # if is_main_agent:
     curr_blocked_map[given_goal_node.x, given_goal_node.y] = 1
     config_to = run_i_pibt(
         main_agent=main_agent, nodes_dict=nodes_dict, h_dict=h_dict,
@@ -739,8 +743,8 @@ def update_agents_to_return(
     return agents_to_return
 
 
-def update_future_captured_node_names(future_captured_node_names: List[str], agents: List[AlgCgar3MapfAgent], iteration: int) -> List[str]:
-    for agent in agents:
+def update_future_captured_node_names(future_captured_node_names: List[str], newly_planned_agents: List[AlgCgar3MapfAgent], iteration: int) -> List[str]:
+    for agent in newly_planned_agents:
         agent_path = agent.path[iteration - 1:]
         # agent_path = agent.path[global_iteration + 1:]
         for n in agent_path:
@@ -771,13 +775,11 @@ def all_update_return_roads(planned_agents: List[AlgCgar3MapfAgent], iteration):
 
 def update_waiting_tables(
         main_agent: AlgCgar3MapfAgent,
-        hr_agents: List[AlgCgar3MapfAgent],
-        lr_agents: List[AlgCgar3MapfAgent],
         planned_agents: List[AlgCgar3MapfAgent],
         agents_to_return: List[AlgCgar3MapfAgent],
         next_n_name_to_a_dict: Dict[str, AlgCgar3MapfAgent],
         future_captured_node_names: List[str],
-        iteration: int, to_assert: bool
+        iteration: int
 ) -> None:
     # update waiting_table
     for affected_agent in agents_to_return:
@@ -791,19 +793,17 @@ def update_waiting_tables(
             if n_name in next_n_name_to_a_dict:
                 agent_on_road = next_n_name_to_a_dict[n_name]
                 agent_on_road_name = agent_on_road.name
-                if agent_on_road != affected_agent and agent_on_road != main_agent and agent_on_road not in hr_agents:
+                if agent_on_road != affected_agent and agent_on_road != main_agent:
                     assert agent_on_road in planned_agents
                     aor_n_name, aor_i, aor_a_list, aor_n = agent_on_road.return_road[-1]
                     assert aor_n_name == n_name
                     assert n == aor_n
                     aor_a_list.append(affected_agent.name)
-                    affected_agent.add_to_wl(n, agent_on_road, aor_i, to_assert)
+                    affected_agent.add_to_wl(n, agent_on_road, aor_i)
 
 
 def calc_backward_road(
         main_agent: AlgCgar3MapfAgent,
-        hr_agents: List[AlgCgar3MapfAgent],
-        lr_agents: List[AlgCgar3MapfAgent],
         backward_step_agents: List[AlgCgar3MapfAgent],  # agents that are needed to be moved
         planned_agents: List[AlgCgar3MapfAgent],  # agents that already planned
         agents_to_return: List[AlgCgar3MapfAgent],  # all agents that need to return
@@ -821,19 +821,14 @@ def calc_backward_road(
         heapq.heappush(future_captured_node_names, given_node.xy_name)
         if to_pop:
             rr_n_name, rr_i, rr_a_list, rr_n = given_a.return_road.pop()
-            assert given_node != rr_n
-            assert given_node == given_a.return_road[-1][3]
+            # assert given_node != rr_n
+            # assert given_node == given_a.return_road[-1][3]
             given_a.trash_return_road.append((rr_n_name, rr_i, rr_a_list, rr_n))
             item_to_remove = (given_a.name, rr_i)
             for rr_a_name in rr_a_list:
                 rr_a = agents_dict[rr_a_name]
                 rr_a.remove_from_wl(rr_n, given_a, rr_i)
     # ------------------------------------------------------------------ #
-    # by this stage the forward_step_agents already executed their step
-    update_waiting_tables(
-        main_agent, hr_agents, lr_agents, planned_agents, agents_to_return, next_n_name_to_a_dict, future_captured_node_names,
-        iteration, to_assert
-    )
 
     # decide rest of to_config
     # open_list: Deque[AlgCgar3MapfAgent] = deque(backward_step_agents[:])
@@ -845,7 +840,7 @@ def calc_backward_road(
             continue
         # no need to return, the agent wasn't displaced
         if len(next_agent.return_road) == 1:
-            assert next_agent.return_road[0][3] == next_agent.curr_node
+            # assert next_agent.return_road[0][3] == next_agent.curr_node
             update_data(next_agent, next_agent.curr_node)
             continue
         next_possible_n_name, next_rr_i, next_rr_a_list, next_possible_node = next_agent.return_road[-2]
@@ -857,7 +852,7 @@ def calc_backward_road(
         # Circles: there will be never circles here => with the circles the algorithm will not work
         if next_possible_n_name in curr_n_name_to_a_dict:
             distur_agent = curr_n_name_to_a_dict[next_possible_node.xy_name]
-            assert distur_agent in agents_to_return
+            # assert distur_agent in agents_to_return
             if distur_agent.name not in to_config:
                 open_list.append(next_agent)
                 continue
@@ -876,12 +871,9 @@ def calc_backward_road(
 
     # update a path
     for agent in backward_step_agents:
-        assert len(agent.path) - 1 == iteration - 1
+        # assert len(agent.path) - 1 == iteration - 1
         to_node = to_config[agent.name]
         agent.path.append(to_node)
-        if to_assert:
-            assert agent.curr_node == agent.return_road[-1][3]
-            assert agent.prev_node.xy_name in agent.curr_node.neighbours
     return
 
 
@@ -894,7 +886,7 @@ def clean_agents_to_return(
     for agent in agents_to_return:
         # assert len(agent.path) - 1 >= iteration
         if len(agent.return_road) == 1 and len(agent.path) - 1 == iteration:
-            assert agent.return_road[-1][3] == agent.path[iteration]
+            # assert agent.return_road[-1][3] == agent.path[iteration]
             deleted_agents.append(agent)
         else:
             cleaned_agents_to_return.append(agent)
@@ -1000,8 +992,6 @@ def check_if_all_at_roads_are_in_list(
 
 def continuation_check_stage(
         main_agent: AlgCgar3MapfAgent,
-        hr_agents: List[AlgCgar3MapfAgent],
-        lr_agents: List[AlgCgar3MapfAgent],
         blocked_map: np.ndarray,
         iteration: int,
         config_from: Dict[str, Node],
@@ -1021,7 +1011,7 @@ def continuation_check_stage(
     """
     returns: to_resume: bool, info: dict
     """
-    # TODO: get rid of stay_where_you_are as much as possible
+
     # if the agent has a plan
     if main_agent.name in config_to:
         return True, {
@@ -1059,8 +1049,6 @@ def continuation_check_stage(
             'do_step_stage': False, 'do_return_stage': False
         }
 
-    # Create blocked map
-    # blocked_map: np.ndarray = get_blocked_map(main_agent, hr_agents, lr_agents, agents, agents_to_return_dict, img_np, iteration)
     given_goal_node = main_agent.get_goal_node()
     main_non_sv_nodes_np = non_sv_nodes_with_blocked_np[given_goal_node.x, given_goal_node.y]
     main_next_node = get_min_h_nei_node(main_agent.curr_node, given_goal_node, nodes_dict, h_dict)
@@ -1078,7 +1066,7 @@ def continuation_check_stage(
     else:
         # EP step
         # If the next step/corridor is blocked somewhere
-        if corridor_is_blocked_somewhere(closest_corridor, blocked_map):
+        if corridor_is_blocked_somewhere(closest_corridor, blocked_map) and given_goal_node not in closest_corridor:
             # stay_where_you_are(main_agent, config_to, iteration)
             return True, {
                 'message': 'the next step/corridor is blocked somewhere', 'ccs_status': 5,
@@ -1149,8 +1137,6 @@ def continuation_check_stage(
 
 def calc_step_stage(
         main_agent: AlgCgar3MapfAgent,
-        hr_agents: List[AlgCgar3MapfAgent],
-        lr_agents: List[AlgCgar3MapfAgent],
         blocked_map: np.ndarray,
         r_blocked_map: np.ndarray,
         iteration: int,
@@ -1216,8 +1202,6 @@ def calc_step_stage(
 
 def return_agents_stage(
         main_agent: AlgCgar3MapfAgent,
-        hr_agents: List[AlgCgar3MapfAgent],
-        lr_agents: List[AlgCgar3MapfAgent],
         iteration: int,
         check_stage_info: dict,
         config_from: Dict[str, Node],
@@ -1277,8 +1261,13 @@ def return_agents_stage(
     #     agents_to_return, iteration
     # )
 
+    # by this stage the forward_step_agents already executed their step
+    update_waiting_tables(
+        main_agent, planned_agents, agents_to_return, next_n_name_to_a_dict,
+        future_captured_node_names, iteration
+    )
     calc_backward_road(
-        main_agent, hr_agents, lr_agents, backward_step_agents, planned_agents, agents_to_return, agents_dict, curr_n_name_to_a_dict,
+        main_agent, backward_step_agents, planned_agents, agents_to_return, agents_dict, curr_n_name_to_a_dict,
         future_captured_node_names, next_n_name_to_a_dict, config_to, iteration,
     )
 

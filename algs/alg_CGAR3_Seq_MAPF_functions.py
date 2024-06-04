@@ -158,6 +158,7 @@ def order_the_agents(
 ) -> Tuple[Deque[AlgCgar3SeqMapfAgent], Dict[str, AlgCgar3SeqMapfAgent], List[str]]:
 
     # Preps
+    last_a = agents[0]
     last_n_name_to_a_dict: Dict[str, AlgCgar3SeqMapfAgent] = {}
     last_n_name_to_a_list: List[str] = []
     for a in agents:
@@ -169,6 +170,7 @@ def order_the_agents(
     # Main
     unfinished: List[AlgCgar3SeqMapfAgent] = [a for a in agents if a.curr_node != a.get_goal_node()]
     goal_free_list: List[AlgCgar3SeqMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name not in last_n_name_to_a_list]
+    goal_free_list.sort(key=lambda a: distance_nodes(a.get_goal_node(), last_a.curr_node) + distance_nodes(a.get_goal_node(), last_a.get_goal_node()), reverse=True)
     not_goal_free_list: List[AlgCgar3SeqMapfAgent] = [a for a in unfinished if a.get_goal_node().xy_name in last_n_name_to_a_list]
     finished: List[AlgCgar3SeqMapfAgent] = [a for a in agents if a.curr_node == a.get_goal_node()]
     random.shuffle(finished)
