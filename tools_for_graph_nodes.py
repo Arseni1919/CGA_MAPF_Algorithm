@@ -225,9 +225,15 @@ def copy_nodes(nodes: List[Node]) -> Tuple[List[Node], Dict[str, Node]]:
 
 
 def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List[Node] | None = None) -> bool:
+    # b = blocked_nodes[0]
+    # if b.xy_name == '30_7' and node.xy_name == '30_8':
+    #     print('', end='')
     if blocked_nodes is None:
         blocked_nodes = []
     blocked_nodes_names = [n.xy_name for n in blocked_nodes]
+    for nei_name in node.neighbours:
+        if nei_name in blocked_nodes_names:
+            return False
     assert len(node.neighbours) != 0
     assert len(node.neighbours) != 1
     if len(node.neighbours) == 2:
@@ -266,17 +272,20 @@ def is_freedom_node(node: Node, nodes_dict: Dict[str, Node], blocked_nodes: List
             if len(init_nei_names) == 0:
                 return True
         for nei_name in next_node.neighbours:
+
             if nei_name == next_node.xy_name:
                 continue
+
             if nei_name in closed_names_list_heap:
                 continue
 
             if nei_name in open_names_list_heap:
                 continue
-            nei_node = nodes_dict[nei_name]
-            if nei_node in blocked_nodes:
+
+            if nei_name in blocked_nodes_names:
                 continue
 
+            nei_node = nodes_dict[nei_name]
             open_list.appendleft(nei_node)
             # open_list.append(nei_node)
             heapq.heappush(open_names_list_heap, nei_name)

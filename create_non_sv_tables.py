@@ -40,6 +40,8 @@ def create_non_sv_nodes_with_blocked_np(nodes: List[Node], nodes_dict: Dict[str,
     # x, y, x, y
     print(f'Started to create blocked_{img_dir[:-4]}.npy...')
     non_sv_nodes_with_blocked_np: np.ndarray = np.zeros((img_np.shape[0], img_np.shape[1], img_np.shape[0], img_np.shape[1]))
+    # i_node = nodes_dict['30_7']
+    # get_non_sv_nodes_with_blocked_np(i_node, nodes, nodes_dict, img_np, non_sv_nodes_with_blocked_np)
     for node in nodes:
         get_non_sv_nodes_with_blocked_np(node, nodes, nodes_dict, img_np, non_sv_nodes_with_blocked_np)
     assert os.path.exists('logs_for_freedom_maps')

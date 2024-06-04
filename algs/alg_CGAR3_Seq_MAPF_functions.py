@@ -604,7 +604,7 @@ def calc_backward_road(
 
     update_waiting_tables(agents_with_new_plan, agents_to_return, fs_to_a_dict, to_assert)
 
-    # decide rest of to_config
+    # decide rest of config_to
     # open_list: Deque[AlgCgar3SeqMapfAgent] = deque(backward_step_agents[:])
     open_list: Deque[AlgCgar3SeqMapfAgent] = deque(agents_to_return[:])
     while len(open_list) > 0:

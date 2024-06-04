@@ -287,8 +287,8 @@ def plot_return_paths(ax, info):
         occupied_nodes = info['occupied_nodes']
         for n in occupied_nodes:
             field[n.x, n.y] = 0
-    if 'agents_to_return_dict' in info:
-        agents_to_return_dict = info['agents_to_return_dict']
+    if 'r_parent_to_children_dict' in info:
+        agents_to_return_dict = info['r_parent_to_children_dict']
         i_agent = info['i_agent']
         agents_to_plot = agents_to_return_dict[i_agent.name]
     else:

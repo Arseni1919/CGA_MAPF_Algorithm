@@ -58,7 +58,7 @@ def execute_backward_road[T](from_n_to_a_dict: Dict[str, T], backward_step_agent
 
     update_waiting_tables(agents, fs_to_a_dict, from_n_to_a_dict, iteration, to_assert)
 
-    # decide rest of to_config
+    # decide rest of config_to
     open_list: Deque[T] = deque(agents[:])
     while len(open_list) > 0:
         next_agent = open_list.popleft()

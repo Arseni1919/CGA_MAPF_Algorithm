@@ -691,7 +691,7 @@ def calc_backward_road(
         iteration, to_assert
     )
 
-    # decide rest of to_config
+    # decide rest of config_to
     # open_list: Deque[AlgCgar3MapfAgent] = deque(backward_step_agents[:])
     open_list: Deque[AlgCgar2MapfAgent] = deque(agents_to_return[:])
     while len(open_list) > 0:
