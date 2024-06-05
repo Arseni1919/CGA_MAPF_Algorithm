@@ -30,8 +30,8 @@ class AlgCgar3Mapf(AlgGeneric):
         self.r_parent_to_children_dict: Dict[str, List[AlgCgar3MapfAgent]] = {}
         self.r_children_to_parent_dict: Dict[str, AlgCgar3MapfAgent | None] = {}
         self.n_agents = 0
-        self.with_return_stage = True
-        # self.with_return_stage = False
+        # self.with_return_stage = True
+        self.with_return_stage = False
 
         # logs
         self.logs: dict | None = None
@@ -116,7 +116,7 @@ class AlgCgar3Mapf(AlgGeneric):
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
             # RENDER
-            if to_render and iteration >= 0:
+            if to_render and iteration >= 590:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
                 plot_info = {
@@ -213,14 +213,15 @@ class AlgCgar3Mapf(AlgGeneric):
             )
             pa_list.extend(fresh_agents)
 
-            # Get newly-moved agents
-            newly_planned_agents, future_captured_node_names = get_newly_planned_agents(
-                agent, pa_list, [], future_captured_node_names, iteration
-            )
-            # future_captured_node_names = update_future_captured_node_names(future_captured_node_names, newly_planned_agents, iteration)
-
             # RETURN_STAGE
             if self.with_return_stage:
+                # Get newly-moved agents
+                newly_planned_agents, future_captured_node_names = get_newly_planned_agents(
+                    agent, pa_list, [], future_captured_node_names, iteration
+                )
+                # future_captured_node_names = update_future_captured_node_names(
+                #       future_captured_node_names, newly_planned_agents, iteration
+                # )
                 return_stage_message, fresh_agents = return_agents_stage(
                     agent, iteration, check_stage_info,
                     config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
@@ -230,7 +231,6 @@ class AlgCgar3Mapf(AlgGeneric):
                 pa_list.extend(fresh_agents)
 
             # update blocked map
-            # pa_list = [a for a in ua_list if len(a.path) - 1 >= iteration]
             blocked_map_2, r_blocked_map = update_blocked_map(
                 blocked_map_2, r_blocked_map, agent, pa_list, self.r_parent_to_children_dict, iteration
             )

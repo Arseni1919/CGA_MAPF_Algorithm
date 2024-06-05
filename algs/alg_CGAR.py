@@ -80,7 +80,7 @@ def execute_backward_road[T](from_n_to_a_dict: Dict[str, T], backward_step_agent
             update_data(next_agent, next_agent.curr_node)
             continue
         # another agent in front of the agent needs to plan first
-        # TODO: check for circles - there will be never circles here = with the circles the algorithm will not work
+        # there will be never circles here = with the circles the algorithm will not work
         if next_possible_node.xy_name in from_n_to_a_dict:
             distur_agent = from_n_to_a_dict[next_possible_node.xy_name]
             if distur_agent.name not in to_config:

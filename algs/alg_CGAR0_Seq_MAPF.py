@@ -18,7 +18,6 @@ def is_enough_free_locations(
         full_corridor_check: bool = False
 ) -> Tuple[bool, str, int, dict]:
     next_node = get_min_h_nei_node(curr_node, goal_node, nodes_dict, h_dict)
-    full_path: List[Node] = [next_node]
     open_list: List[Node] = [next_node]
     open_list_names: List[str] = [next_node.xy_name]
     closed_list: List[Node] = [curr_node, goal_node]
@@ -75,7 +74,7 @@ def is_enough_free_locations(
         next_node = open_list.pop()
         open_list_names.remove(next_node.xy_name)
         # is_sv: bool = non_sv_nodes_np[next_node.x, next_node.y] == 0
-        next_node_out_of_full_path = next_node not in full_path
+        next_node_out_of_full_path = next_node not in closest_corridor
         # next_node_out_of_full_path = next_node not in closest_corridor
         next_node_is_not_occupied = next_node not in other_curr_nodes
         if next_node_out_of_full_path and next_node_is_not_occupied:
