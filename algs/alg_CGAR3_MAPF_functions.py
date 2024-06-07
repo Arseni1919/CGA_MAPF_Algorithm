@@ -1089,12 +1089,12 @@ def calc_backward_road(
             chain_dict = update_chain_dict(chain_dict, config_to)
             circles_list = find_circles(chain_dict)
             print('', end='')
-            # to_resume = resolve_circles(
-            #     circles_list, config_to, agents_to_return, agents_dict,
-            #     open_list, fresh_agents, next_n_name_to_a_dict, f_blocked_map
-            # )
-            # if not to_resume:
-            #     continue
+            to_resume = resolve_circles(
+                circles_list, config_to, agents_to_return, agents_dict,
+                open_list, fresh_agents, next_n_name_to_a_dict, f_blocked_map
+            )
+            if not to_resume:
+                continue
         next_agent = open_list.popleft()
         next_agent_name = next_agent.name
         # already planned
