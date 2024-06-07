@@ -235,9 +235,10 @@ class AlgPIBT(AlgGeneric):
     def check_solvability(self) -> Tuple[bool, str]:
         return True, 'good'
 
-    def solve(self, max_time: int, to_assert: bool = True, to_render: bool = False) -> Tuple[
-        bool, Dict[str, List[Node]]]:
-
+    def solve(
+            self, max_time: int, to_assert: bool = True, to_render: bool = False
+) -> Tuple[bool, Dict[str, List[Node]]]:
+        start_time = time.time()
         # to render
         if to_render:
             fig, ax = plt.subplots(1, 2, figsize=(14, 7))
@@ -272,7 +273,9 @@ class AlgPIBT(AlgGeneric):
             pass
 
             # print + render
-            print(f'\r[PIBT] {iteration=} | finished: {len(agents_finished)}/{self.n_agents}', end='')
+            runtime = time.time() - start_time
+            print(f'\r{'*' * 20} | [{self.name}] {iteration=} | finished: {len(agents_finished)}/{self.n_agents} | runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
+            # print(f'\r[PIBT] {iteration=} | finished: {len(agents_finished)}/{self.n_agents}', end='')
             iteration += 1
 
             if to_render and iteration >= 0:

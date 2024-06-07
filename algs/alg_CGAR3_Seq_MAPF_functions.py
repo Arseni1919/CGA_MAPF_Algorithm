@@ -801,9 +801,7 @@ def all_arrived(agents: Deque[AlgCgar3SeqMapfAgent], paths_dict: Dict[str, List[
     return True
 
 
-def update_chain_dict(
-        chain_dict: Dict[str, str], config_from: Dict[str, Node], config_to: Dict[str, Node]
-) -> Dict[str, str]:
+def update_chain_dict(chain_dict: Dict[str, str], config_to: Dict[str, Node]) -> Dict[str, str]:
     new_chain_dict: Dict[str, str] = {}
     for k, v in chain_dict.items():
         if k not in config_to:
@@ -851,7 +849,7 @@ def find_circles(chain_dict: Dict[str, str]) -> List[List[str]]:
 
 
 def resolve_circles(
-        chain_dict: Dict[str, str], config_from: Dict[str, Node], config_to: Dict[str, Node],
+        chain_dict: Dict[str, str], config_to: Dict[str, Node],
         agents_roads_marks_dict: Dict[str, Deque[Tuple[str, int]]], waiting_table: Dict[str, Deque[Tuple[str, int]]],
         nodes_dict: Dict[str, Node], open_deq: Deque[AlgCgar3SeqMapfAgent], agents_dict: Dict[str, AlgCgar3SeqMapfAgent]
 ) -> bool:
@@ -935,9 +933,9 @@ def compress_paths(
         while len(config_to) < len(config_from):
             iteration_config += 1
             if iteration_config > len(config_from) * 10:
-                chain_dict = update_chain_dict(chain_dict, config_from, config_to)
+                chain_dict = update_chain_dict(chain_dict, config_to)
                 to_resume = resolve_circles(
-                    chain_dict, config_from, config_to, agents_roads_marks_dict, waiting_table, nodes_dict,
+                    chain_dict, config_to, agents_roads_marks_dict, waiting_table, nodes_dict,
                     open_deq, agents_dict
                 )
                 if not to_resume:
