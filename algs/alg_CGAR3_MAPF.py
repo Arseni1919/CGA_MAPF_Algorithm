@@ -119,7 +119,7 @@ class AlgCgar3Mapf(AlgGeneric):
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
             # RENDER
-            if to_render and iteration >= 800:
+            if to_render and iteration >= 0:
                 i_agent = self.agents[0]
                 non_sv_nodes_np = self.non_sv_nodes_with_blocked_np[i_agent.get_goal_node().x, i_agent.get_goal_node().y]
                 plot_info = {
@@ -153,7 +153,6 @@ class AlgCgar3Mapf(AlgGeneric):
     def update_priorities(self, iteration: int, to_assert: bool = False) -> None:
         self.agents.sort(key=lambda a: a.future_rank)
         unfinished: List[AlgCgar3MapfAgent] = []
-        finishing: List[AlgCgar3MapfAgent] = []
         finished: List[AlgCgar3MapfAgent] = []
         for agent in self.agents:
             return_agents = self.r_parent_to_children_dict[agent.name]
@@ -171,7 +170,7 @@ class AlgCgar3Mapf(AlgGeneric):
     def build_next_steps(self, iteration: int, to_assert: bool = False) -> Dict[str, Node]:
 
         (config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
-         blocked_map, r_blocked_map, f_blocked_map, curr_map,
+         blocked_map, r_blocked_map, f_blocked_map, vc_map, ec_map, curr_map,
          agents_with_plan, agents_with_no_plan) = self.get_preparations(iteration)
         remained_agents: List[AlgCgar3MapfAgent] = []
 
@@ -182,7 +181,7 @@ class AlgCgar3Mapf(AlgGeneric):
             # CHECK_STAGE
             changed, check_stage_info, fresh_agents = continuation_check_stage(
                 agent, blocked_map, iteration,
-                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
+                config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, vc_map, ec_map,
                 self.r_parent_to_children_dict, self.h_dict,
                 self.non_sv_nodes_with_blocked_np, self.nodes_dict,
                 self.first_privilege
@@ -196,7 +195,8 @@ class AlgCgar3Mapf(AlgGeneric):
             calc_step_stage_message, fresh_agents = calc_step_stage(
                 agent, blocked_map, r_blocked_map, f_blocked_map, curr_map, agents_with_no_plan, iteration,
                 config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, check_stage_info,
-                self.non_sv_nodes_with_blocked_np, self.agents, self.nodes, self.nodes_dict, self.h_dict
+                vc_map, ec_map,
+                self.non_sv_nodes_with_blocked_np, self.agents, self.nodes, self.nodes_dict, self.h_dict, self.img_np
             )
             pa_list.extend(fresh_agents)
 
@@ -213,7 +213,7 @@ class AlgCgar3Mapf(AlgGeneric):
                     return_stage_message, fresh_agents = return_agents_stage(
                         agent, iteration, check_stage_info,
                         config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
-                        newly_planned_agents, f_blocked_map,
+                        newly_planned_agents, f_blocked_map, vc_map, ec_map,
                         self.agents, self.agents_dict, self.r_parent_to_children_dict, self.r_children_to_parent_dict
                     )
                     pa_list.extend(fresh_agents)
@@ -231,7 +231,7 @@ class AlgCgar3Mapf(AlgGeneric):
 
         for agent in remained_agents:
             if len(agent.path) - 1 == iteration - 1:
-                stay_where_you_are(agent, config_to, iteration)
+                stay_where_you_are(agent, config_from, config_to, iteration, vc_map, ec_map)
         # check_configs(self.agents, config_from, config_to, final_check=True)
         return config_to
 
@@ -252,16 +252,21 @@ class AlgCgar3Mapf(AlgGeneric):
         r_blocked_map: np.ndarray = np.zeros(self.img_np.shape)
         f_blocked_map: np.ndarray = np.zeros(self.img_np.shape)
         curr_map: np.ndarray = np.zeros(self.img_np.shape)
+        vc_map: np.ndarray = np.zeros(self.img_np.shape)
+        ec_map: np.ndarray = np.zeros((self.img_np.shape[0], self.img_np.shape[1], self.img_np.shape[0], self.img_np.shape[1]))
         agents_with_plan: List[AlgCgar3MapfAgent] = []
         agents_with_no_plan: List[AlgCgar3MapfAgent] = []
         for agent in self.agents:
-            config_from[agent.name] = agent.curr_node
-            curr_map[agent.curr_node.x, agent.curr_node.y] = 1
+            node_from = agent.curr_node
+            config_from[agent.name] = node_from
+            curr_map[node_from.x, node_from.y] = 1
             goals_dict[agent.name] = agent.get_goal_node()
             curr_n_name_to_a_dict[agent.curr_node.xy_name] = agent
             if len(agent.path) - 1 >= iteration:
                 agents_with_plan.append(agent)
-                config_to[agent.name] = agent.path[iteration]
+                node_to = agent.path[iteration]
+                config_to[agent.name] = node_to
+                add_to_vc_ec_maps(config_from, config_to, agent.name, vc_map, ec_map)
                 future_path = agent.path[iteration - 1:]
                 for n in future_path:
                     blocked_map[n.x, n.y] = 1
@@ -275,7 +280,7 @@ class AlgCgar3Mapf(AlgGeneric):
 
         # ---------------------------------------------------------------------------------------------------------- #
         return (config_from, config_to, goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list,
-                blocked_map, r_blocked_map, f_blocked_map, curr_map, agents_with_plan, agents_with_no_plan)
+                blocked_map, r_blocked_map, f_blocked_map, vc_map, ec_map, curr_map, agents_with_plan, agents_with_no_plan)
 
 
 @use_profiler(save_dir='../stats/alg_cgar3_mapf.pstat')

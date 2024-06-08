@@ -247,10 +247,12 @@ def update_ranks(agents: List[AlgCgar3MapfAgent]):
         agent.future_rank = curr_rank
 
 
-def update_config_to(config_to: Dict[str, Node], agents: List[AlgCgar3MapfAgent], iteration: int, from_pibt_step: bool = False):
+def update_config_to(config_from: Dict[str, Node], config_to: Dict[str, Node], agents: List[AlgCgar3MapfAgent], iteration: int, vc_map: np.ndarray,
+        ec_map: np.ndarray,):
     for agent in agents:
         if agent.name not in config_to and len(agent.path) - 1 >= iteration:
             config_to[agent.name] = agent.path[iteration]
+            add_to_vc_ec_maps(config_from, config_to, agent.name, vc_map, ec_map)
             # if from_pibt_step:
             #     print()
 
@@ -277,7 +279,14 @@ def get_newly_planned_agents(
     return newly_planned_agents
 
 
-def stay_where_you_are(main_agent: AlgCgar3MapfAgent, config_to: Dict[str, Node], iteration: int):
+def stay_where_you_are(
+        main_agent: AlgCgar3MapfAgent,
+        config_from: Dict[str, Node],
+        config_to: Dict[str, Node],
+        iteration: int,
+        vc_map: np.ndarray,
+        ec_map: np.ndarray
+):
     # cut if needed
     if len(main_agent.path) - 1 >= iteration:
         config_to[main_agent.name] = main_agent.path[iteration]
@@ -286,6 +295,7 @@ def stay_where_you_are(main_agent: AlgCgar3MapfAgent, config_to: Dict[str, Node]
     # assert next_node == main_agent.curr_node
     main_agent.path.append(next_node)
     config_to[main_agent.name] = next_node
+    add_to_vc_ec_maps(config_from, config_to, main_agent.name, vc_map, ec_map)
     # assert config_to[main_agent.name] == main_agent.path[iteration]
     main_agent.set_parent_of_path(main_agent)
 
@@ -638,20 +648,52 @@ def corridor_is_blocked_somewhere(closest_corridor: List[Node], blocked_map: np.
     return False
 
 
-def build_vc_ec_from_configs(config_from: Dict[str, Node], config_to: Dict[str, Node]):
+def remove_from_ec_map(
+        config_from: Dict[str, Node], config_to: Dict[str, Node], agent_name: str, ec_map: np.ndarray
+):
+    if agent_name in config_to:
+        node_to = config_to[agent_name]
+        node_from = config_from[agent_name]
+        ec_map[node_from.x, node_from.y, node_to.x, node_to.y] = 0
+    return
+
+
+def remove_from_vc_ec_maps(
+        config_from: Dict[str, Node], config_to: Dict[str, Node], agent_name: str,
+        vc_map: np.ndarray, ec_map: np.ndarray
+):
+    if agent_name in config_to:
+        node_to = config_to[agent_name]
+        node_from = config_from[agent_name]
+        vc_map[node_to.x, node_to.y] = 0
+        ec_map[node_from.x, node_from.y, node_to.x, node_to.y] = 0
+    return
+
+
+def add_to_vc_ec_maps(
+        config_from: Dict[str, Node], config_to: Dict[str, Node], agent_name: str,
+        vc_map: np.ndarray, ec_map: np.ndarray
+):
+    node_to = config_to[agent_name]
+    node_from = config_from[agent_name]
+    vc_map[node_to.x, node_to.y] = 1
+    ec_map[node_from.x, node_from.y, node_to.x, node_to.y] = 1
+    return
+
+
+def build_vc_ec_from_configs(config_from: Dict[str, Node], config_to: Dict[str, Node], img_np: np.ndarray):
     vc_set, ec_set = [], []
+    # vc_map, ec_map = [], []
+    vc_map: np.ndarray = np.zeros(img_np.shape)
+    ec_map: np.ndarray = np.zeros((img_np.shape[0], img_np.shape[1], img_np.shape[0], img_np.shape[1]))
     for agent_name, node_from in config_from.items():
         if agent_name in config_to:
             node_to = config_to[agent_name]
             heapq.heappush(vc_set, (node_to.x, node_to.y))
+            vc_map[node_to.x, node_to.y] = 1
             heapq.heappush(ec_set, (node_from.x, node_from.y, node_to.x, node_to.y))
-            # vc_set.append((node_to.x, node_to.y))
-            # ec_set.append((node_from.x, node_from.y, node_to.x, node_to.y))
-    # heapq.heapify(vc_set)
-    # heapq.heapify(ec_set)
-    # vc_set_backup = vc_set[:]
-    # ec_set_backup = ec_set[:]
-    return vc_set, ec_set
+            ec_map[node_from.x, node_from.y, node_to.x, node_to.y] = 1
+    return vc_set, ec_set, vc_map, ec_map
 
 
 def procedure_i_pibt(
@@ -666,13 +708,20 @@ def procedure_i_pibt(
         blocked_map: np.ndarray,
         iteration: int,
         boss_agent: AlgCgar3MapfAgent,
+        img_np: np.ndarray,
+        vc_map: np.ndarray,
+        ec_map: np.ndarray,
 ) -> bool:
     agent_name = agent.name
     agent_curr_node = config_from[agent_name]
     agent_goal_node = goals[agent_name]
     h_goal_np: np.ndarray = h_dict[agent_goal_node.xy_name]
-    vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
-
+    # vc_set, ec_set, vc_map_2, ec_map_2 = build_vc_ec_from_configs(config_from, config_to, img_np)
+    # check1 = vc_map == vc_map_2
+    # check2 = ec_map == ec_map_2
+    # res = np.transpose(np.nonzero(check2 == False))
+    # assert check1.all()
+    # assert check2.all()
     # sort C in ascending order of dist(u, gi) where u ∈ C
     nei_nodes: List[Node] = [nodes_dict[n_name] for n_name in config_from[agent_name].neighbours]
     random.shuffle(nei_nodes)
@@ -686,11 +735,14 @@ def procedure_i_pibt(
 
     for j, nei_node in enumerate(nei_nodes):
         # vc
-        if (nei_node.x, nei_node.y) in vc_set:
+        # if (nei_node.x, nei_node.y) in vc_set:
+        if vc_map[nei_node.x, nei_node.y]:
             continue
         # ec
-        if (nei_node.x, nei_node.y, agent_curr_node.x, agent_curr_node.y) in ec_set:
+        # if (nei_node.x, nei_node.y, agent_curr_node.x, agent_curr_node.y) in ec_set:
+        if ec_map[nei_node.x, nei_node.y, agent_curr_node.x, agent_curr_node.y]:
             continue
+
         # blocked
         if blocked_map[nei_node.x, nei_node.y] and nei_node != agent_goal_node:
             continue
@@ -699,34 +751,26 @@ def procedure_i_pibt(
         if blocked_map[nei_node.x, nei_node.y] and agent.curr_rank != boss_agent.curr_rank and nei_node == agent_goal_node:
             continue
 
+        # remove_from_vc_ec_maps(config_from, config_to, agent_name, vc_map, ec_map)
         config_to[agent_name] = nei_node
+        add_to_vc_ec_maps(config_from, config_to, agent_name, vc_map, ec_map)
+
         if nei_node.xy_name in curr_n_name_to_agent_list:
             next_agent = curr_n_name_to_agent_dict[nei_node.xy_name]
             if agent != next_agent and next_agent.name not in config_to:
                 next_is_valid = procedure_i_pibt(
                     next_agent, nodes_dict, h_dict, config_from, config_to, goals,
-                    curr_n_name_to_agent_dict, curr_n_name_to_agent_list, blocked_map, iteration, boss_agent
+                    curr_n_name_to_agent_dict, curr_n_name_to_agent_list, blocked_map, iteration, boss_agent, img_np,
+                    vc_map, ec_map
                 )
                 if not next_is_valid:
-                    # old_vc = vc_set[:]
-                    # old_ec = ec_set[:]
-                    vc_set, ec_set = build_vc_ec_from_configs(config_from, config_to)
-                    # new_v_list = []
-                    # new_e_list = []
-                    # for old_v in old_vc:
-                    #     assert old_v in vc_set
-                    # for new_v in vc_set:
-                    #     if new_v not in old_vc:
-                    #         new_v_list.append(new_v)
-                    # for old_v in old_ec:
-                    #     if agent.curr_node.xy != (old_v[0], old_v[1]):
-                    #         assert old_v in ec_set
-                    # for new_v in ec_set:
-                    #     if new_v not in old_ec:
-                    #         new_e_list.append(new_v)
+                    # vc_set, ec_set, vc_map_2, ec_map_2 = build_vc_ec_from_configs(config_from, config_to, img_np)
+                    remove_from_ec_map(config_from, config_to, agent_name, ec_map)
                     continue
         return True
+    # remove_from_vc_ec_maps(config_from, config_to, agent_name, vc_map, ec_map)
     config_to[agent_name] = agent_curr_node
+    add_to_vc_ec_maps(config_from, config_to, agent_name, vc_map, ec_map)
     return False
 
 
@@ -734,19 +778,21 @@ def run_i_pibt(
         main_agent: AlgCgar3MapfAgent,
         nodes_dict: Dict[str, Node],
         h_dict: Dict[str, np.ndarray],
-        config_from: Dict[str, Node] | None = None,
-        config_to: Dict[str, Node] | None = None,
-        goals: Dict[str, Node] | None = None,
-        curr_n_name_to_agent_dict: Dict[str, AlgCgar3MapfAgent] | None = None,
-        curr_n_name_to_agent_list: List[str] | None = None,
-        blocked_map: np.ndarray | None = None,
-        iteration: int | None = None,
-) -> Dict[str, Node]:
+        config_from: Dict[str, Node],
+        config_to: Dict[str, Node],
+        goals: Dict[str, Node],
+        curr_n_name_to_agent_dict: Dict[str, AlgCgar3MapfAgent],
+        curr_n_name_to_agent_list: List[str],
+        blocked_map: np.ndarray,
+        img_np: np.ndarray,
+        iteration: int,
+        vc_map: np.ndarray,
+        ec_map: np.ndarray,
+) -> None:
     _ = procedure_i_pibt(main_agent, nodes_dict, h_dict, config_from, config_to, goals,
                          curr_n_name_to_agent_dict, curr_n_name_to_agent_list, blocked_map, iteration,
-                         boss_agent=main_agent
-                         )
-    return config_to
+                         boss_agent=main_agent, img_np=img_np, vc_map=vc_map, ec_map=ec_map)
+    return
 
 
 def calc_pibt_step(
@@ -756,8 +802,11 @@ def calc_pibt_step(
         f_blocked_map: np.ndarray,
         curr_map: np.ndarray,
         config_from: Dict[str, Node], config_to: Dict[str, Node],
+        vc_map: np.ndarray,
+        ec_map: np.ndarray,
         goals: Dict[str, Node], curr_n_name_to_agent_dict: Dict[str, AlgCgar3MapfAgent],
-        curr_n_name_to_agent_list: List[str], unplanned_agents: List[AlgCgar3MapfAgent], is_main_agent: bool = False,
+        curr_n_name_to_agent_list: List[str], unplanned_agents: List[AlgCgar3MapfAgent], img_np: np.ndarray,
+        is_main_agent: bool = False,
         iteration: int = 0, to_assert: bool = False
 ) -> Dict[str, Node]:
     # print(f'\n --- inside calc_pibt_step {iteration} --- ')
@@ -775,11 +824,12 @@ def calc_pibt_step(
     condition = np.logical_and((r_blocked_map == 0), (f_blocked_map == 0))
     curr_blocked_map_2 = np.where(np.logical_and(curr_map, condition), 0, blocked_map)
     curr_blocked_map_2[given_goal_node.x, given_goal_node.y] = 1
-    config_to = run_i_pibt(
+    run_i_pibt(
         main_agent=main_agent, nodes_dict=nodes_dict, h_dict=h_dict,
         config_from=config_from, config_to=config_to, goals=goals,
         curr_n_name_to_agent_dict=curr_n_name_to_agent_dict, curr_n_name_to_agent_list=curr_n_name_to_agent_list,
-        blocked_map=curr_blocked_map_2, iteration=iteration)
+        blocked_map=curr_blocked_map_2, img_np=img_np, iteration=iteration, vc_map=vc_map,
+        ec_map=ec_map)
     # Update paths
     for agent in unplanned_agents:
         if agent.name in config_to:
@@ -1073,7 +1123,10 @@ def calc_backward_road(
         agents_dict: Dict[str, AlgCgar3MapfAgent],
         curr_n_name_to_a_dict: Dict[str, AlgCgar3MapfAgent],
         f_blocked_map: np.ndarray,
+        vc_map: np.ndarray,
+        ec_map: np.ndarray,
         next_n_name_to_a_dict: Dict[str, AlgCgar3MapfAgent],
+        config_from: Dict[str, Node],
         config_to: Dict[str, Node],
         iteration: int, to_assert: bool = False
 ) -> List[AlgCgar3MapfAgent]:
@@ -1088,7 +1141,6 @@ def calc_backward_road(
         if iteration_r > len(agents_to_return) * 10:
             chain_dict = update_chain_dict(chain_dict, config_to)
             circles_list = find_circles(chain_dict)
-            print('', end='')
             to_resume = resolve_circles(
                 circles_list, config_to, agents_to_return, agents_dict,
                 open_list, fresh_agents, next_n_name_to_a_dict, f_blocked_map
@@ -1158,10 +1210,11 @@ def calc_backward_road(
         continue
 
     # update a path
-    for agent in backward_step_agents:
+    for agent in fresh_agents:
         # assert len(agent.path) - 1 == iteration - 1
         to_node = config_to[agent.name]
         agent.path.append(to_node)
+        add_to_vc_ec_maps(config_from, config_to, agent.name, vc_map, ec_map)
     return fresh_agents
 
 
@@ -1296,6 +1349,8 @@ def continuation_check_stage(
         goals_dict: Dict[str, Node],
         curr_n_name_to_a_dict: Dict[str, AlgCgar3MapfAgent],
         curr_n_name_to_a_list: List[str],
+        vc_map: np.ndarray,
+        ec_map: np.ndarray,
         r_parent_to_children_dict: Dict[str, List[AlgCgar3MapfAgent]],
         h_dict: dict,
         non_sv_nodes_with_blocked_np: np.ndarray,
@@ -1317,7 +1372,7 @@ def continuation_check_stage(
     if main_agent.curr_node == main_agent.get_goal_node():
         main_a_return_agents_list = r_parent_to_children_dict[main_agent.name]
         if len(main_a_return_agents_list) > 0:
-            stay_where_you_are(main_agent, config_to, iteration)
+            stay_where_you_are(main_agent, config_from, config_to, iteration, vc_map, ec_map)
             return True, {
                 'message': 'is at the goal, but need to wait for agents to return', 'ccs_status': 2,
                 'do_step_stage': False, 'do_return_stage': True
@@ -1334,11 +1389,11 @@ def continuation_check_stage(
                     prev_main_rank = main_agent.future_rank
                     main_agent.future_rank = parent.future_rank
                     parent.future_rank = prev_main_rank
-                stay_where_you_are(parent, config_to, iteration)
+                stay_where_you_are(parent, config_from, config_to, iteration, vc_map, ec_map)
                 fresh_agents.append(parent)
             # Change the goal of the agent i back to the original
             main_agent.remove_alt_goal_node()
-        stay_where_you_are(main_agent, config_to, iteration)
+        stay_where_you_are(main_agent, config_from, config_to, iteration, vc_map, ec_map)
         fresh_agents.append(main_agent)
         message = 'swap back' if the_order_swapped else ''
         return True, {
@@ -1391,8 +1446,8 @@ def continuation_check_stage(
                 prev_main_priority = main_agent.future_rank
                 main_agent.future_rank = distur_agent.future_rank
                 distur_agent.future_rank = prev_main_priority
-        stay_where_you_are(distur_agent, config_to, iteration)
-        stay_where_you_are(main_agent, config_to, iteration)
+        stay_where_you_are(distur_agent, config_from, config_to, iteration, vc_map, ec_map)
+        stay_where_you_are(main_agent, config_from, config_to, iteration, vc_map, ec_map)
 
         return True, {
             'message': 'swap', 'ccs_status': 6,
@@ -1412,12 +1467,12 @@ def continuation_check_stage(
             main_agent, nodes_dict, h_dict, non_sv_nodes_with_blocked_np, curr_n_name_to_a_list,
             blocked_map, goals=list(goals_dict.values()), avoid_curr_nodes=True, avoid_goals=True)
         if alter_goal_node == main_agent.goal_node:
-            stay_where_you_are(main_agent, config_to, iteration)
+            stay_where_you_are(main_agent, config_from, config_to, iteration, vc_map, ec_map)
             return True, {
                 'message': 'alt goal node is not good', 'ccs_status': 7,
                 'do_step_stage': False, 'do_return_stage': True
             }, [main_agent]
-        stay_where_you_are(main_agent, config_to, iteration)
+        stay_where_you_are(main_agent, config_from, config_to, iteration, vc_map, ec_map)
         main_agent.reset_alt_goal_node(alter_goal_node, main_agent)
         return True, {
             'message': 'error 5', 'ccs_status': 8,
@@ -1426,7 +1481,7 @@ def continuation_check_stage(
 
     # if any other reason to fail
     if not alt_is_good:
-        stay_where_you_are(main_agent, config_to, iteration)
+        stay_where_you_are(main_agent, config_from, config_to, iteration, vc_map, ec_map)
         return True, {
             'message': f'{alt_message}', 'ccs_status': 9,
             'do_step_stage': False, 'do_return_stage': True
@@ -1452,11 +1507,14 @@ def calc_step_stage(
         curr_n_name_to_a_dict: Dict[str, AlgCgar3MapfAgent],
         curr_n_name_to_a_list: List[str],
         check_stage_info: dict,
+        vc_map: np.ndarray,
+        ec_map: np.ndarray,
         non_sv_nodes_with_blocked_np: np.ndarray,
         agents: List[AlgCgar3MapfAgent],
         nodes: List[Node],
         nodes_dict: Dict[str, Node],
         h_dict: dict,
+        img_np: np.ndarray,
 ) -> Tuple[str, List[AlgCgar3MapfAgent]]:
     main_agent.status = 'was main_agent'
     if main_agent.name in config_to:
@@ -1486,23 +1544,20 @@ def calc_step_stage(
         # blocked_nodes = get_blocked_nodes(self.agents, iteration, self.need_to_freeze_main_goal_node)
         calc_pibt_step(main_agent, agents, nodes_dict, h_dict, given_goal_node,
                        blocked_map, r_blocked_map, f_blocked_map, curr_map,
-                       config_from, config_to,
-                       goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, unplanned_agents,
+                       config_from, config_to, vc_map, ec_map,
+                       goals_dict, curr_n_name_to_a_dict, curr_n_name_to_a_list, unplanned_agents, img_np,
                        iteration=iteration)
         message = f'plan of pibt in i {iteration}'
-        # update_config_to(config_to, unplanned_agents, iteration, from_pibt_step=True)
     else:
         # calc evacuation of agents from the corridor
         calc_ep_steps(main_agent, agents, nodes, nodes_dict, h_dict, given_goal_node, config_from,
                       curr_n_name_to_a_dict, curr_n_name_to_a_list, a_non_sv_nodes_np,
                       blocked_map, iteration)
         message = f'plan of ev in i {iteration}'
-        update_config_to(config_to, unplanned_agents, iteration)
+        update_config_to(config_from, config_to, unplanned_agents, iteration, vc_map, ec_map)
 
     main_agent.last_calc_step_message = message
     newly_planned_agents = [a for a in unplanned_agents if a.name in config_to]
-    # if len(newly_planned_agents) > 0:
-    #     assert main_agent in newly_planned_agents
     update_parent_of_path(newly_planned_agents, parent=main_agent)
     return message, newly_planned_agents
 
@@ -1518,6 +1573,8 @@ def return_agents_stage(
         curr_n_name_to_a_list: List[str],
         newly_planned_agents: List[AlgCgar3MapfAgent],
         f_blocked_map: np.ndarray,
+        vc_map: np.ndarray,
+        ec_map: np.ndarray,
         agents: List[AlgCgar3MapfAgent],
         agents_dict: Dict[str, AlgCgar3MapfAgent],
         r_parent_to_children_dict: Dict[str, List[AlgCgar3MapfAgent]],
@@ -1564,7 +1621,6 @@ def return_agents_stage(
     if is_removed:
         return '(2) len(agents_to_return) == 0', []
 
-    # TODO: to comment out
     # check_if_all_at_roads_are_in_list(
     #     main_agent,
     #     curr_n_name_to_a_dict, curr_n_name_to_a_list,
@@ -1578,7 +1634,7 @@ def return_agents_stage(
     )
     fresh_agents = calc_backward_road(
         main_agent, backward_step_agents, planned_agents, agents_to_return, agents_dict, curr_n_name_to_a_dict,
-        f_blocked_map, next_n_name_to_a_dict, config_to, iteration,
+        f_blocked_map, vc_map, ec_map, next_n_name_to_a_dict, config_from, config_to, iteration,
     )
 
     agents_to_return, deleted_agents = clean_agents_to_return(main_agent, agents_to_return, iteration)
