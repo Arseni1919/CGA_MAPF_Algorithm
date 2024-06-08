@@ -1138,7 +1138,7 @@ def calc_backward_road(
     iteration_r = 0
     while len(open_list) > 0:
         iteration_r += 1
-        if iteration_r > len(agents_to_return) * 10:
+        if iteration_r > len(agents_to_return) * 90:
             chain_dict = update_chain_dict(chain_dict, config_to)
             circles_list = find_circles(chain_dict)
             to_resume = resolve_circles(
