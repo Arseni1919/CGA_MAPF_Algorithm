@@ -8,7 +8,7 @@ from tools_for_graph_nodes import *
 from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
-from algs.alg_PIBT import run_i_pibt
+from algs.alg_b_PIBT import run_i_pibt
 from algs.alg_CGAR import *
 from algs.alg_CGAR0_Seq_MAPF import is_enough_free_locations
 

@@ -1,7 +1,7 @@
 from tools_for_plotting import *
 from tools_for_heuristics import *
 from tools_for_graph_nodes import *
-from algs.alg_PIBT import run_i_pibt
+from algs.alg_b_PIBT import run_i_pibt
 from algs.alg_CGAR import get_min_h_nei_node, find_ev_path, push_ev_agents, push_main_agent, build_corridor_from_nodes
 
 

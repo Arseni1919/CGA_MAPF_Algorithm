@@ -6,7 +6,7 @@ from tools_for_graph_nodes import *
 from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
-from algs.alg_PIBT import run_i_pibt
+from algs.alg_b_PIBT import run_i_pibt
 from algs.alg_CGAR import align_all_paths, get_min_h_nei_node
 from algs.alg_CGAR import build_corridor, find_ev_path, push_ev_agents, push_main_agent, build_corridor_from_nodes
 

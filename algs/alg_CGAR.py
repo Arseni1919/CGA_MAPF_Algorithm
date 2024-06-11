@@ -8,7 +8,7 @@ from tools_for_graph_nodes import *
 from single_MAPF_run import single_mapf_run
 from environments.env_MAPF import SimEnvMAPF
 from algs.alg_generic_class import AlgGeneric
-from algs.alg_PIBT import run_i_pibt
+from algs.alg_b_PIBT import run_i_pibt
 
 
 def update_waiting_tables[T](agents: List[T], fs_to_a_dict: Dict[str, T], from_n_to_a_dict: Dict[str, T], iteration: int, to_assert: bool) -> None:
