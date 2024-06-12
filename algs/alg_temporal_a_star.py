@@ -179,6 +179,7 @@ def calc_temporal_a_star(
         # print(f'\r[{iteration}] open: {len(open_list)}, closed: {len(closed_list)}, {i_t=}', end='')
         # i_node_name = i_node.xy_name
         exploded = len(closed_list) > max_len * 10
+        # exploded = False
         if i_node == goal_node or i_t >= max_len or exploded:
             # if there is a future constraint on a goal
             latest_vc_on_node: int = get_latest_vc_on_node(i_node, vc_np)

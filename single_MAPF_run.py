@@ -50,7 +50,7 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # ------------------------------------------------------------------------------------------------------------ #
         # MAPF
         # ------------------------------------------------------------------------------------------------------------ #
-        N = 300
+        N = 180
         i_problems = 1
         # img_dir = '10_10_my_rand.map'
         # img_dir = '15-15-two-rooms.map'
@@ -58,9 +58,9 @@ def single_mapf_run(AlgClass, is_SACGR=True):
         # img_dir = '15-15-six-rooms.map'
         # img_dir = '15-15-eight-rooms.map'
 
-        img_dir = 'empty-32-32.map'
+        # img_dir = 'empty-32-32.map'
         # img_dir = 'random-32-32-10.map'
-        # img_dir = 'random-32-32-20.map'
+        img_dir = 'random-32-32-20.map'
         # img_dir = 'maze-32-32-4.map'
         # img_dir = 'maze-32-32-2.map'
         # img_dir = 'room-32-32-4.map'
