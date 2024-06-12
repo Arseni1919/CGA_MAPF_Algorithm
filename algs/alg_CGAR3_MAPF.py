@@ -35,6 +35,7 @@ class AlgCgar3Mapf(AlgGeneric):
         self.first_privilege = True
         # self.first_privilege = False
 
+
         # logs
         self.logs: dict | None = None
 

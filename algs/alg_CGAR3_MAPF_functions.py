@@ -1160,8 +1160,6 @@ def calc_backward_road(
             )
             continue
         next_possible_n_name, next_rr_i, next_rr_a_list, next_possible_node = next_agent.return_road[-2]
-        if iteration >= 46 and next_possible_n_name == '18_23' and next_agent.num == 247:
-            print()
         # next possible move is not allowed
         if f_blocked_map[next_possible_node.x, next_possible_node.y]:
             update_data(
