@@ -130,22 +130,19 @@ def get_node_successor(i_node: Node, successor_xy_name: str, new_t: int, nodes_d
     :param pc_np: permanent constraints [x, y] = int or -1
     :return:
     """
-    if successor_xy_name not in nodes_dict:
-        return None
+    # if successor_xy_name not in nodes_dict:
+    #     return None
     node_successor = nodes_dict[successor_xy_name]
 
-    if vc_np is not None:
-        if new_t < vc_np.shape[-1] and vc_np[node_successor.x, node_successor.y, new_t]:
-            return None
+    if new_t < vc_np.shape[-1] and vc_np[node_successor.x, node_successor.y, new_t]:
+        return None
 
-    if ec_np is not None:
-        if new_t < ec_np.shape[-1] and ec_np[node_successor.x, node_successor.y, i_node.x, i_node.y, new_t]:
-            return None
+    if new_t < ec_np.shape[-1] and ec_np[node_successor.x, node_successor.y, i_node.x, i_node.y, new_t]:
+        return None
 
-    if pc_np is not None:
-        pc_value = pc_np[node_successor.x, node_successor.y]
-        if pc_value != -1 and new_t >= pc_value:
-            return None
+    pc_value = pc_np[node_successor.x, node_successor.y]
+    if pc_value != -1 and new_t >= pc_value:
+        return None
 
     # return node_successor
     return Node(x=node_successor.x, y=node_successor.y, neighbours=node_successor.neighbours)
