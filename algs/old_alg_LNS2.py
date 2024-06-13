@@ -7,7 +7,6 @@ from tools_for_heuristics import *
 from tools_for_plotting import *
 from algs.test_single_alg import test_single_alg
 from algs.alg_a_star_space_time import a_star_xyt
-from environments.env_LL_MAPF import EnvLifelongMAPF
 from algs.alg_ParObs_PF_PrP_seq import ParObsPFPrPAgent, AlgParObsPFPrPSeq
 
 

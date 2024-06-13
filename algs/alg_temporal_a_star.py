@@ -147,6 +147,7 @@ def get_node_successor(i_node: Node, successor_xy_name: str, new_t: int, nodes_d
         if pc_value != -1 and new_t >= pc_value:
             return None
 
+    # return node_successor
     return Node(x=node_successor.x, y=node_successor.y, neighbours=node_successor.neighbours)
 
 
@@ -167,8 +168,9 @@ def calc_temporal_a_star(
     open_list.add(i_t=0, i_h=initial_h, i_node=curr_node)
     # closed_list = HeapList()
     closed_list = []
-    # spanning_tree_dict: Dict[str, str | None] = {f'{curr_node.xy_name}_0': None}  # child: parent
-    # xyt_nodes_dict = {f'{curr_node.xy_name}_0': curr_node}
+    # id_counter = 0
+    # child_to_parent_dict: Dict[int, str | None] = {id_counter: None}  # child: parent
+    # xyt_nodes_dict: Dict[int, Node] = {id_counter: curr_node}
 
     iteration = 0
     i_t = 0
@@ -176,9 +178,10 @@ def calc_temporal_a_star(
     while len(open_list) > 0:
         iteration += 1
         i_t, i_h, i_f, i_node = open_list.pop()
+        i_xyt_name = f'{i_node.xy_name}_{i_t}'
         # print(f'\r[{iteration}] open: {len(open_list)}, closed: {len(closed_list)}, {i_t=}', end='')
         # i_node_name = i_node.xy_name
-        exploded = len(closed_list) > max_len * 10
+        exploded = len(closed_list) > max_len * 100
         # exploded = False
         if i_node == goal_node or i_t >= max_len or exploded:
             # if there is a future constraint on a goal
@@ -196,8 +199,8 @@ def calc_temporal_a_star(
                 new_t = max_final_time + 1
 
             successor_xyt_name = f'{successor_xy_name}_{new_t}'
-            # if successor_xy_name == i_node.xy_name:
-            #     continue
+            if successor_xy_name == i_xyt_name:
+                continue
             if successor_xyt_name in open_list:
                 continue
             if successor_xyt_name in closed_list:
@@ -208,10 +211,12 @@ def calc_temporal_a_star(
                 continue
             new_h = int(goal_h_dict[node_successor.x, node_successor.y])
             node_successor.parent = i_node
+            # id_counter += 1
+            # child_to_parent_dict[id_counter] =
             open_list.add(i_t=new_t, i_h=new_h, i_node=node_successor)
 
         # closed_list.add(i_t=i_t, i_h=i_h, i_node=i_node)
-        heapq.heappush(closed_list, f'{i_node.xy_name}_{i_t}')
+        heapq.heappush(closed_list, i_xyt_name)
 
     path = reconstruct_path(i_node)
     runtime = time.time() - start_time
