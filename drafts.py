@@ -34,3 +34,4 @@ b = {'id': '123', 'type': 'admin'}
 # To check if b is a subset of a:
 result = b.items() <= a.items()
 print(result)  # Output: True
+
