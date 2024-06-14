@@ -23,7 +23,14 @@
 # print("Original list - ", lst)
 # print("Successive overlapping pairs - ", list(pairwise(lst)))
 
-l = [('a', 1, [1, 3, 4])]
-print(l)
-l[-1][2].append(12)
-print(l)
+# l = [('a', 1, [1, 3, 4])]
+# print(l)
+# l[-1][2].append(12)
+# print(l)
+
+a = {'id': '123', 'type': 'admin', 'status': 'active'}
+b = {'id': '123', 'type': 'admin'}
+
+# To check if b is a subset of a:
+result = b.items() <= a.items()
+print(result)  # Output: True

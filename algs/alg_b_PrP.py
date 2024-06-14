@@ -245,7 +245,7 @@ class AlgPrPMapf(AlgGeneric):
 
 @use_profiler(save_dir='../stats/alg_prp_mapf.pstat')
 def main():
-    # single_mapf_run(AlgPrPMapf, is_SACGR=True)
+    # single_mapf_run(AlgLNS2Mapf, is_SACGR=True)
     single_mapf_run(AlgPrPMapf, is_SACGR=False)
 
 
