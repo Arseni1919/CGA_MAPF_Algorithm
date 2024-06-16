@@ -22,6 +22,7 @@ from algs.alg_CGAR import get_min_h_nei_node, build_corridor_from_nodes, find_ev
 class AlgCgar3MapfAgent:
     def __init__(self, num: int, start_node: Node, goal_node: Node, nodes: List[Node], nodes_dict: Dict[str, Node]):
         self.num = num
+        self.name = f'agent_{self.num}'
         self.curr_rank = num
         self.future_rank = num
         self.status = ''
@@ -44,9 +45,9 @@ class AlgCgar3MapfAgent:
         self.parent_of_goal_node: Self = self
         self.parent_of_path: Self = self
 
-    @property
-    def name(self):
-        return f'agent_{self.num}'
+    # @property
+    # def name(self):
+    #     return f'agent_{self.num}'
 
     @property
     def path_names(self):

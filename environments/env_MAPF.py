@@ -26,6 +26,7 @@ class SimEnvMAPF:
         path_to_maps: str = kwargs['path_to_maps'] if 'path_to_maps' in kwargs else '../maps'
         path_to_heuristics: str = kwargs[
             'path_to_heuristics'] if 'path_to_heuristics' in kwargs else '../logs_for_heuristics'
+        path_to_freedom_maps: str = kwargs['path_to_freedom_maps'] if 'path_to_freedom_maps' in kwargs else '../logs_for_freedom_maps'
 
         # for the map
         self.map_dim = get_dims_from_pic(img_dir=self.img_dir, path=path_to_maps)
@@ -34,8 +35,8 @@ class SimEnvMAPF:
                                                               img_dir=img_dir, path=path_to_heuristics)
         self.h_func = h_func_creator(self.h_dict)
         self.non_sv_nodes_np: np.ndarray = get_non_sv_nodes_np(self.nodes, self.nodes_dict, self.img_np,
-                                                               img_dir=self.img_dir, folder_dir='../logs_for_freedom_maps')
-        self.non_sv_nodes_with_blocked_np = get_blocked_non_sv_nodes(self.img_dir, '../logs_for_freedom_maps')
+                                                               img_dir=self.img_dir, folder_dir=path_to_freedom_maps)
+        self.non_sv_nodes_with_blocked_np = get_blocked_non_sv_nodes(self.img_dir, path_to_freedom_maps)
         self.agents: List[SimAgentMAPF] = []
         self.agents_dict: Dict[str, SimAgentMAPF] = {}
         self.start_nodes: List[Node] = []

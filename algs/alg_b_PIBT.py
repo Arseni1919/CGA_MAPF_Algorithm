@@ -278,6 +278,9 @@ class AlgPIBT(AlgGeneric):
             # print(f'\r[PIBT] {iteration=} | finished: {len(agents_finished)}/{self.n_agents}', end='')
             iteration += 1
 
+            if runtime > max_time:
+                return False, {}
+
             if to_render and iteration >= 0:
                 # i_agent = self.agents_dict['agent_0']
                 i_agent = self.agents[0]

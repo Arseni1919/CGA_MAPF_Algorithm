@@ -7,37 +7,38 @@ from functions import *
 
 class Node:
     def __init__(self, x: int, y: int, t: int = 0, neighbours: List[str] | None = None):
-        self._x = x
-        self._y = y
+        self.x = x
+        self.y = y
         self.t = t
         self.h = 0
         self.neighbours = [] if neighbours is None else neighbours
         self.parent = None
         self.g_dict = {}
+        self.xy_name = f'{self.x}_{self.y}'
 
-    @property
-    def x(self):
-        return self._x
-
-    @property
-    def y(self):
-        return self._y
+    # @property
+    # def x(self):
+    #     return self._x
+    #
+    # @property
+    # def y(self):
+    #     return self._y
 
     @property
     def xy(self):
-        return self._x, self._y
+        return self.x, self.y
 
     @property
     def g(self):
         return self.t
 
-    @property
-    def xyt_name(self):
-        return f'{self.x}_{self.y}_{self.t}'
+    # @property
+    # def xyt_name(self):
+    #     return f'{self.x}_{self.y}_{self.t}'
 
-    @property
-    def xy_name(self):
-        return f'{self.x}_{self.y}'
+    # @property
+    # def xy_name(self):
+    #     return f'{self.x}_{self.y}'
 
     @property
     def f(self):

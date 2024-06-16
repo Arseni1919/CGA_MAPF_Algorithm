@@ -30,8 +30,8 @@ class AlgCgar3Mapf(AlgGeneric):
         self.r_parent_to_children_dict: Dict[str, List[AlgCgar3MapfAgent]] = {}
         self.r_children_to_parent_dict: Dict[str, AlgCgar3MapfAgent | None] = {}
         self.n_agents = 0
-        self.with_return_stage = True
-        # self.with_return_stage = False
+        # self.with_return_stage = True
+        self.with_return_stage = False
         self.first_privilege = True
         # self.first_privilege = False
 
@@ -119,6 +119,10 @@ class AlgCgar3Mapf(AlgGeneric):
             # PRINT
             runtime = time.time() - start_time
             print(f'\r{'*' * 20} | [{self.name}] {iteration=} | solved: {self.n_solved}/{self.n_agents} | runtime: {runtime: .2f} seconds | {'*' * 20}', end='')
+
+            if runtime > max_time:
+                return False, {}
+
             # RENDER
             if to_render and iteration >= 0:
                 i_agent = self.agents[0]

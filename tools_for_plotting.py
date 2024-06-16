@@ -470,7 +470,6 @@ def plot_sr(ax, info):
     alg_names = info['alg_names']
     n_agents_list = info['n_agents_list']
     img_dir = info['img_dir']
-    time_to_think_limit = info['time_to_think_limit']
 
     for i_alg in alg_names:
         sr_list = []

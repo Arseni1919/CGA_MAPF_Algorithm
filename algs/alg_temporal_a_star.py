@@ -165,25 +165,19 @@ def calc_temporal_a_star(
     open_list.add(i_t=0, i_h=initial_h, i_node=curr_node)
     # closed_list = HeapList()
     closed_list = []
-    # id_counter = 0
-    # child_to_parent_dict: Dict[int, str | None] = {id_counter: None}  # child: parent
-    # xyt_nodes_dict: Dict[int, Node] = {id_counter: curr_node}
 
     iteration = 0
-    i_t = 0
     i_node = curr_node
     while len(open_list) > 0:
         iteration += 1
         i_t, i_h, i_f, i_node = open_list.pop()
         i_xyt_name = f'{i_node.xy_name}_{i_t}'
-        # print(f'\r[{iteration}] open: {len(open_list)}, closed: {len(closed_list)}, {i_t=}', end='')
-        # i_node_name = i_node.xy_name
-        exploded = len(closed_list) > max_len * 100
+        exploded = len(closed_list) > max_len * 10
         # exploded = False
         if i_node == goal_node or i_t >= max_len or exploded:
             # if there is a future constraint on a goal
             latest_vc_on_node: int = get_latest_vc_on_node(i_node, vc_np)
-            if i_t > latest_vc_on_node or i_t >= max_len:
+            if i_t > latest_vc_on_node or i_t >= max_len or exploded:
                 path = reconstruct_path(i_node)
                 runtime = time.time() - start_time
                 return path, {'runtime': runtime, 'open_list': open_list, 'closed_list': closed_list}
@@ -208,11 +202,7 @@ def calc_temporal_a_star(
                 continue
             new_h = int(goal_h_dict[node_successor.x, node_successor.y])
             node_successor.parent = i_node
-            # id_counter += 1
-            # child_to_parent_dict[id_counter] =
             open_list.add(i_t=new_t, i_h=new_h, i_node=node_successor)
-
-        # closed_list.add(i_t=i_t, i_h=i_h, i_node=i_node)
         heapq.heappush(closed_list, i_xyt_name)
 
     path = reconstruct_path(i_node)
