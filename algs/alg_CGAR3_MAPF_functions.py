@@ -247,14 +247,16 @@ def update_ranks(agents: List[AlgCgar3MapfAgent]):
         agent.future_rank = curr_rank
 
 
-def update_config_to(config_from: Dict[str, Node], config_to: Dict[str, Node], agents: List[AlgCgar3MapfAgent], iteration: int, vc_map: np.ndarray,
-        ec_map: np.ndarray,):
+def update_config_to(
+        config_from: Dict[str, Node], config_to: Dict[str, Node], agents: List[AlgCgar3MapfAgent], iteration: int,
+        vc_map: np.ndarray, ec_map: np.ndarray
+):
     for agent in agents:
-        if agent.name not in config_to and len(agent.path) - 1 >= iteration:
+        # assert agent.name not in config_to
+        # if agent.name not in config_to and len(agent.path) - 1 >= iteration:
+        if len(agent.path) - 1 >= iteration:
             config_to[agent.name] = agent.path[iteration]
             add_to_vc_ec_maps(config_from, config_to, agent.name, vc_map, ec_map)
-            # if from_pibt_step:
-            #     print()
 
 
 def get_newly_planned_agents(
