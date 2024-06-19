@@ -488,7 +488,7 @@ def plot_sr(ax, info):
     # ax.set_title(f'{img_dir[:-4]} Map | time limit: {time_to_think_limit} sec.')
     # set_plot_title(ax, f'{img_dir[:-4]} Map | time limit: {time_to_think_limit} sec.', size=11)
     set_plot_title(ax, f'{img_dir[:-4]} Map', size=11)
-    set_legend(ax, size=17)
+    set_legend(ax, size=12)
     plt.tight_layout()
 
 
@@ -553,7 +553,7 @@ def plot_time_metric(ax, info):
     alg_names = info['alg_names']
     n_agents_list = info['n_agents_list']
     img_dir = info['img_dir']
-    time_to_think_limit = info['time_to_think_limit']
+    max_time = info['max_time']
 
     # x_list = n_agents_list[:4]
     x_list = n_agents_list
@@ -565,15 +565,15 @@ def plot_time_metric(ax, info):
             res_str += f'\t{n_a} - {soc_list[-1]: .2f}, '
         ax.plot(x_list, soc_list, markers_lines_dict[i_alg], color=colors_dict[i_alg],
                 alpha=0.5, label=f'{i_alg}', linewidth=5, markersize=20)
-        print(f'{i_alg}\t\t\t: {res_str}')
+        # print(f'{i_alg}\t\t\t: {res_str}')
     ax.set_xlim([min(x_list) - 20, max(x_list) + 20])
     ax.set_xticks(x_list)
     ax.set_xlabel('N agents', fontsize=15)
-    ax.set_ylabel('Average Runtime', fontsize=15)
+    ax.set_ylabel('Runtime', fontsize=15)
     # ax.set_title(f'{img_dir[:-4]} Map | time limit: {time_to_think_limit} sec.')
-    set_plot_title(ax, f'{img_dir[:-4]} Map | time limit: {time_to_think_limit} sec.',
+    set_plot_title(ax, f'{img_dir[:-4]} Map | time limit: {max_time} sec.',
                    size=11)
-    set_legend(ax, size=17)
+    set_legend(ax, size=12)
 
 
 def plot_time_metric_cactus(ax, info):
@@ -671,7 +671,7 @@ def plot_makespan(ax, info):
     alg_names = info['alg_names']
     n_agents_list = info['n_agents_list']
     img_dir = info['img_dir']
-    time_to_think_limit = info['time_to_think_limit']
+    max_time = info['max_time']
 
     for i_alg in alg_names:
         makespan_list = []
@@ -680,10 +680,10 @@ def plot_makespan(ax, info):
         ax.plot(n_agents_list, makespan_list, '-^', label=f'{i_alg}')
     ax.set_xlim([min(n_agents_list) - 20, max(n_agents_list) + 20])
     ax.set_xticks(n_agents_list)
-    ax.set_xlabel('N agents')
-    ax.set_ylabel('Average Makespan')
+    ax.set_xlabel('N agents', fontsize=15)
+    ax.set_ylabel('Makespan', fontsize=15)
     # ax.set_title(f'{img_dir[:-4]} Map | time limit: {time_to_think_limit} sec.')
-    set_plot_title(ax, f'{img_dir[:-4]} Map | time limit: {time_to_think_limit} sec.',
+    set_plot_title(ax, f'{img_dir[:-4]} Map | time limit: {max_time} sec.',
                    size=10)
     set_legend(ax, size=12)
 

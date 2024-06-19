@@ -193,7 +193,7 @@ class AlgPIBTAgent:
 class AlgPIBT(AlgGeneric):
     name = 'PIBT'
 
-    def __init__(self, env: SimEnvMAPF):
+    def __init__(self, env: SimEnvMAPF, params: dict | None = None):
         super().__init__()
         self.env = env
 

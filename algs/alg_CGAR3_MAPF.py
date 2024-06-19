@@ -7,7 +7,7 @@ class AlgCgar3Mapf(AlgGeneric):
 
     name = 'CGAR3-MAPF'
 
-    def __init__(self, env: SimEnvMAPF):
+    def __init__(self, env: SimEnvMAPF, params: dict | None = None):
         super().__init__()
 
         self.env = env
@@ -30,14 +30,18 @@ class AlgCgar3Mapf(AlgGeneric):
         self.r_parent_to_children_dict: Dict[str, List[AlgCgar3MapfAgent]] = {}
         self.r_children_to_parent_dict: Dict[str, AlgCgar3MapfAgent | None] = {}
         self.n_agents = 0
-        self.with_return_stage = True
-        # self.with_return_stage = False
+        # self.with_return_stage = True
+        self.with_return_stage = False
         self.first_privilege = True
         # self.first_privilege = False
+        if params is not None:
+            self.with_return_stage = params['with_return_stage']
+            self.first_privilege = params['first_privilege']
+            self.name = params['name']
 
 
         # logs
-        self.logs: dict | None = None
+        self.logs: dict = {}
 
     @property
     def start_nodes(self):
@@ -147,6 +151,9 @@ class AlgCgar3Mapf(AlgGeneric):
         # TODO: cut all paths to the minimum
         paths_dict = {a.name: a.path for a in self.agents}
         solved = self.stop_condition()
+        runtime = time.time() - start_time
+        self.logs['time'] = runtime
+        self.logs['makespan'] = iteration
         return solved, paths_dict
 
     def stop_condition(self):
